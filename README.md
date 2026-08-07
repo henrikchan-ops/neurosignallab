@@ -269,7 +269,7 @@ The project seeks to emphasize its scientific humility, reproducibility, and car
 
 ## Project Roadmap
 
-### Phase 1: Project Setup and EEG Foundations
+### 1: Project Setup and EEG Foundations
 
 **Goal:** Set up the repository and define the research question.
 
@@ -290,7 +290,7 @@ Expected outputs:
 
 ---
 
-### Phase 2: EEG Loading and Visualization
+### 2: Data Loading and Visualization
 
 **Goal:** Load real EEG recordings and visualize the raw signal.
 
