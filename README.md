@@ -46,7 +46,7 @@ This project will build a reproducible EEG machine-learning pipeline for motor-i
 
 ### 1. EEG Data Loading and Exploration
 
-The first stage will use MNE-Python file to load EEG recordings from open datasets such as the PhysioNet EEG Motor Movement/Imagery dataset. I will inspect sampling frequency, channel names, recording duration, annotations/events, and basic raw EEG.
+The first stage will use a MNE-Python file to load EEG recordings from open datasets such as the PhysioNet EEG Motor Movement/Imagery dataset. I will inspect sampling frequency, channel names, recording duration, amount of channels, annotations/events, and plot raw EEG for artefacts.
 
 ### 2. Preprocessing
 
@@ -101,7 +101,7 @@ By the end of this project, NeuroSignalLab aims to include the following deliver
 
 ### 1. EEG Data Loading and Visualization
 
-A program that loads open EEG recordings using MNE-Python, inspects metadata such as sampling frequency, number of channels and channel names, and visualizes raw EEG signals.
+A notebook that loads open EEG recordings using MNE-Python, inspects metadata such as sampling frequency, number of channels and channel names, and visualizes raw EEG signals.
 
 Expected output:
 
@@ -298,8 +298,8 @@ Planned tasks:
 
 * download a small subset of the PhysioNet EEG Motor Movement/Imagery dataset
 * load EEG files using MNE-Python
-* inspect sampling frequency, channel names, and recording duration
-* plot raw EEG traces
+* inspect sampling frequency, channel number, annotations/events, channel names, and recording duration
+* plot raw EEG traces to catch artifacts
 
 Expected outputs:
 
