@@ -11,7 +11,7 @@ I started NeuroSignallab because i wanted to learn how to translate biological s
 
 As a medical student i am learning how the physiology of the nervous system works. As an informatics student I am learning how to interpret complex data into tools.
 
-Through my research at a neurophysiology lab, I learned how to studybrain signals and connectivity patterns quantitatively, which furthered my interest in combining these two interests into a concrete technical project. 
+Through my research at a neurophysiology lab, I learned how to study brain signals and connectivity patterns quantitatively, which furthered my interest in combining these two interests into a concrete technical project. 
 
 Therefore, I wish to translate this complex noisy EEG-data into a software that can showcase, interpret and visualize brain signals in a reproducible manner. 
 
@@ -36,7 +36,7 @@ Users should download datasets directly from the original sources:
 - Only small sample files are included for demonstration purposes
 
 ## License
-This project@s source code is licensed under the MIT License. 
+This project´s source code is licensed under the MIT License. 
 
 The datasets in this project are not redistributed in this repository. The datasets are governed by their own original licenses, access conditios and citation requirements. Please refer to the origianl dataset providers for dataset access, citation requirements and terms of use. 
 
