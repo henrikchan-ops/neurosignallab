@@ -308,9 +308,9 @@ Expected outputs:
 
 ---
 
-### Phase 3: EEG Preprocessing
+### 3: EEG Preprocessing
 
-**Goal:** Convert continuous EEG recordings into machine-learning-ready epochs.
+**Goal:** Convert continuous EEG recordings into epochs.
 
 Planned tasks:
 
@@ -328,14 +328,14 @@ Expected outputs:
 
 ---
 
-### Phase 4: Classical Baseline Models
+### 4: Classical Baseline Models
 
 **Goal:** Build simple baseline models before using deep learning.
 
 Planned tasks:
 
 * extract interpretable EEG features
-* train classical machine-learning models
+* train classical ML models
 * evaluate baseline performance
 * create first confusion matrix and metrics table
 
@@ -347,7 +347,7 @@ Expected outputs:
 
 ---
 
-### Phase 5: Honest Evaluation
+### 5: Evaluation
 
 **Goal:** Evaluate models in a way that avoids misleading performance claims.
 
@@ -365,7 +365,7 @@ Expected outputs:
 
 ---
 
-### Phase 6: Deep-Learning Models
+### 6: Deep-Learning Models
 
 **Goal:** Train a CNN and/or EEGNet-style model on EEG epochs.
 
@@ -386,7 +386,7 @@ Expected outputs:
 
 ---
 
-### Phase 7: Visualization and Dashboard
+### 7: Visualization and Dashboard
 
 **Goal:** Build an interactive demo that makes the project understandable.
 
@@ -406,7 +406,7 @@ Expected outputs:
 
 ---
 
-### Phase 8: Interpretability
+### 8: Interpretability
 
 **Goal:** Explore which EEG channels or time segments influence model predictions.
 
@@ -425,7 +425,7 @@ Expected outputs:
 
 ---
 
-### Phase 9: Optional Clinical EEG Extension
+### 9: Optional Clinical EEG Extension
 
 **Goal:** Explore whether the same pipeline can be adapted to clinical EEG seizure data.
 
@@ -444,18 +444,17 @@ Expected outputs:
 
 ---
 
-### Phase 10: Final Report and Portfolio Package
+### 10: Final Report and Portfolio
 
-**Goal:** Turn the project into a polished portfolio artifact.
+**Goal:** Turn the project into a portfolio.
 
 Planned tasks:
 
 * clean repository
-* refactor reusable scripts
+* revise scripts
 * finalize README
 * write technical report
 * create demo video or screenshots
-* connect project to Cornell application narrative
 
 Expected outputs:
 
