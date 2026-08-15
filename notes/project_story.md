@@ -29,6 +29,12 @@ I also want to understand why EEG machine learning is difficult. EEG signals are
 
 ## Initial Research Question
 
+How reliably can classical machine-learning and EEG deep-learning models decode motor-imagery states from open EEG records?
+
+What do preprocessing, evaluation design, and interpretability reveal about the limits of applying EEG machine-learning to neurotechnology or clinical contexts?
+
+This project uses open EEG datasets to build a reproducible process for loading, preprocessing, visualizing, classifying, and interpreting brain-signal data. The goal is not only to compare model performance, but also to understand the practical challenges of EEG-based machine learning, including subject variability, data leakage, model interpretability, and clinical limitations.
+
 ## Major Project decisions
 
 For the main project, I will focus on motor-imagery EEG rather than clinical seizure detection. Motor imagery is a better starting point because it connects naturally to brain-computer interfaces and allows me to build a full EEG decoding program without making diagnostic claims. 
