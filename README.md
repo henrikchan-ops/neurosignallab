@@ -1,24 +1,24 @@
-# neurosignallab
+# NeuroSignalLab
 
 ## Overview
 EEG-based motor imagery decoding with public data sets, classic ML, deep learning, and interpretability tools. 
 
 ## Medical Disclaimer
-This is a research and educational project for me own development. It is not a diagnostic tool, medical device or clinial support system. THe models and visualizations in this repository shoudl not be used to diagnose, monitor, treat or predict neurological disease 
+This is a research and educational project for my own development. It is not a diagnostic tool, medical device or clincial support system. THe models and visualizations in this repository should not be used to diagnose, monitor, treat or predict neurological disease. 
 
 ## Motivation
 I started NeuroSignallab because i wanted to learn how to translate biological signals into useful systems. 
 
-As a medical student i am learning how the physiology of the nervous system works. As an informatics student I am learning how to interpret complex data into tools.
+As a medical student i am learning how the physiology of the nervous system works. As an informatics student I am learning how to translate this complex data into usable computational tools.
 
-Through my research at a neurophysiology lab, I learned how to study brain signals and connectivity patterns quantitatively, which furthered my interest in combining these two interests into a concrete technical project. 
+Through my research at a neurophysiology lab, I learned how to study brain signals and connectivity patterns quantitatively, which furthered my curiousity in combining these two interests into a concrete technical project. 
 
-Therefore, I wish to translate this complex noisy EEG-data into a software that can showcase, interpret and visualize brain signals in a reproducible manner. 
+Therefore, I want to build software that can process, visualize and interpret noisy EEG dta in a reproducible way.
 
 
 ## Research Question
 
-How reliably can classical machine-learning and EEG deep-learning models decode motor-imgaery states from open EEG records?
+How reliably can classical machine-learning and EEG deep-learning models decode motor-imagery states from open EEG records?
 
 What do preprocessing, evaluation design, and interpretability reveal about the limits of applying EEG machine-learning to neurotechnology or clinical contexts?
 
@@ -38,27 +38,29 @@ Users should download datasets directly from the original sources:
 ## License
 This project´s source code is licensed under the MIT License. 
 
-The datasets in this project are not redistributed in this repository. The datasets are governed by their own original licenses, access conditios and citation requirements. Please refer to the origianl dataset providers for dataset access, citation requirements and terms of use. 
+The datasets in this project are not redistributed in this repository. The datasets are governed by their own original licenses, access conditions and citation requirements. Please refer to the original dataset providers for dataset access, citation requirements and terms of use. 
 
 ## Planned Methods
 
 This project will build a reproducible EEG machine-learning pipeline for motor-imagery brain-computer interface exploration, with an optional clinical EEG extension using seizure data.
 
-### 1. EEG Data Loading and Exploration
+### 1. EEG Data Loading and Metadata verification
 
 The first stage will use a MNE-Python file to load EEG recordings from open datasets such as the PhysioNet EEG Motor Movement/Imagery dataset. I will inspect sampling frequency, channel names, recording duration, amount of channels, annotations/events, and plot raw EEG for artefacts.
 
+Before preprocessing, I will verify that selected recordings contain the expected EEG channels and electrodes, and create files including subject ID, snippet/session ID, sampling frequency, channel name, event label, recording duration and electrode names. 
+
 ### 2. Preprocessing
 
-The EEG data will be preprocessed by selecting relevant EEG channels, applying bandpass filtering, extracting task-related events, and converting raw continious EEG recordings into fixed-length epochs suitable for machine-learning models.
+The EEG data will be loaded and preprocessed by selecting relevant EEG channels, applying bandpass filtering, extracting task-related events, and converting raw continious EEG recordings into fixed-length epochs suitable for machine-learning models.
 
 For motor imagery, the initial preprocessing will focus on frequency ranges commonly associated with sensorimotor rhythms, especially the mu/alpha and beta bands.
 
 ### 3. Manual interpretation
 
-Before deep learning, I will build classical baseline/convolution models using interpretable EEG features such as channel variance, bandpower, power spectral density features, and potentially Common Spatial Pattern features.
+Before ML models and deep learning, I will extract and interpret EEG features such as channel variance, bandpower, power spectral density features, and potentially Common Spatial Pattern features. This is how EEG is typically interpreted in labs. 
 
-These baselines provide a comparison point for later deep-learning models.
+These baselines will be used to train classical ML models and provide a comparison point for later deep-learning models.
 
 ### 4. Classical Machine-Learning Models
 
@@ -96,20 +98,21 @@ The project will be organized into notebooks, reusable Python scripts, saved con
 
 ## Expected Deliverables
 
-
 By the end of this project, NeuroSignalLab aims to include the following deliverables:
 
-### 1. EEG Data Loading and Visualization
+### 1. EEG Data Loading and Metadata File Creation
 
 A notebook that loads open EEG recordings using MNE-Python, inspects metadata such as sampling frequency, number of channels and channel names, and visualizes raw EEG signals.
 
 Expected output:
 
 * `notebooks/01_load_and_visualize_eeg.ipynb`
+* `data/metadata/motor_imagery_manifest.csv`
+* `data/processed/epoch_metadata.csv`
 * raw EEG figure
 * short explanation of dataset structure
 
-### 2. EEG Preprocessing Pipeline
+### 2. EEG Preprocessing and Interpretation
 
 A reproducible preprocessing program that converts continuous EEG recordings into epochs.
 
@@ -120,6 +123,7 @@ Expected output:
 * event extraction
 * epoch creation
 * saved processed arrays
+* extract PSD features (and potentially CSP features)
 * `notebooks/02_preprocess_motor_imagery.ipynb`
 
 ### 3. Baseline Machine-Learning Models
@@ -304,21 +308,25 @@ Planned tasks:
 Expected outputs:
 
 * `notebooks/01_load_and_visualize_eeg.ipynb`
+* `data/metadata/motor_imagery_manifest.csv`
+* `data/processed/epoch_metadata.csv`
 * raw EEG trace figure
 
 ---
 
-### 3: EEG Preprocessing
+### 3: EEG Preprocessing and Epoch Creation
 
-**Goal:** Convert continuous EEG recordings into epochs.
+**Goal:** Load and convert continuous EEG recordings into epochs.
 
 Planned tasks:
 
 * select EEG channels
 * apply bandpass filtering
 * extract task events or annotations
+* extract PSD features
 * create epochs around motor-imagery events
 * save processed arrays for modeling
+* save metadata linked to each epoch (subject ID, relevant channels, etc.)
 
 Expected outputs:
 
@@ -464,6 +472,21 @@ Expected outputs:
 * app demo
 * project summary for applications
 
+## Repository Structure
+
+```text
+app/                 Streamlit dashboard files
+data/                Data instructions and small sample files
+figures/             Generated figures
+models/              Saved model files, if included
+notebooks/           Exploratory analysis notebooks
+notes/               Project reflections and planning notes
+reports/             Technical report and written explanations
+results/             Saved metrics and result tables
+src/neurosignallab/  Reusable Python code
+```
+
+## Installation
 
 ## Current Status
 
