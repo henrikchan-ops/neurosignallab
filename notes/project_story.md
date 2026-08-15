@@ -2,25 +2,25 @@
 # NeuroSignalLab Project Story/Timeline
 
 ## Why I started this project
+I started NeuroSignalLab because my interests in medicine, informatics and neurophysiology are starting to converge into a single question: How can biological signals be interpreted and translated into useful computational systems?
 
-I start NeuroSignalLab because my interests in medicine, informatics and neurophysiology are starting to converge into a single question: How can biological signals be interpreted and translated into useful automated efficient systems?
+In medicine, I am learning how the nervous system functions through electrical and chemical signals. Through my research experience in a neurophysiology lab, I am understanding how these electrical signals can be turned into data and interpreted. And in informatics, I am learning how this data can be transformed into reproducible and convenient software tools. 
 
-In medicine, I am learning how the nervous system works as a result of their electrical signals. Through my research experience in a neurophysiology lab, I am understanding how these electrical signals can be turned into data and interpreted. And in informatics, I am learning how this data can be transformed into an automated efficient tool. 
-
-This project seeks to bridge my three interests into a concrete project that can showcase how electrical signals turned into data can show how actions are formed through software. 
+This project seeks to bridge my three interests into a concrete project that can showcase how neural signals can be processed, modeled, and visualized through software. 
 
 ## My background
 I´m Henrik, a 20 year old medical and informatics student at UiO. 
 
 I was put into a competitive environment at a very early age, competing in international piano competitions from the age of 10. In my formative years, and due to isolation in covid, I developed an interest in performance psychology. Through recognizing my own cognitive patterns, I got more and more intrigued in how the human brain functioned biologically and psychologically.  
 
-In highschool, seeking to understand how humans behaved around motivation, desires and wants, I started contacting psychiatrists and healthcare professionals in Oslo and abroad, all while understanding how my own mind developed under pressure throughout competition. Applying these concepts and talking to professionals made me realize how many subgroups in our society are starved of meaningful connections and moments in their lives. This led my to start my own company, Golden Conversations. 
+In highschool, seeking to understand how humans behaved around motivation, desires and wants, I started contacting psychiatrists and healthcare professionals in Oslo and abroad, all while understanding how my own mind developed under pressure throughout competition. Applying these concepts and talking to professionals made me realize how many subgroups in our society are starved of meaningful connections and moments in their lives. This led me to start my own company, Golden Conversations. 
 
-After developing for a few months, my company and a few recruited employees deployed in various elderly homes throughout Oslo during my final year of highschool. During that period, we held concerts, speed friendings, had many deep and meaningful conversations with elderly and other various events. THe elderly were varied, many could hear or see properly, some suffered from memory loss and others struggled to move properly. It truly made me realize that problems in healthcare were much larger and more systematic than my own personal struggles. 
+After developing for a few months, my company and a few recruited employees deployed in various elderly homes throughout Oslo during my final year of highschool. During that period, we held concerts, speed friendings, had many deep and meaningful conversations with elderly and other various events. The elderly were varied, many could not hear or see properly, some suffered from memory loss and others struggled to move properly. It truly made me realize that problems in healthcare were much larger and more systematic than my own personal struggles. 
 
-I knew I needed more knowledge, and so i started studying medicine. Shortly into my studies i joined a lab to further pursue my understanding in neurological illnesses such as Alzheimers and Epilepsy. Inside the lab i saw that meaningful discovery was often found behind mountains of data and gathering of evidence. You dont only need to measure it, like we do during medschool, but also process, model, interpret and translate them. I felt the need to learn more tools in order to interpret these signals better. 
+I knew I needed more knowledge, and so i started studying medicine. Shortly into my studies i joined a lab to further pursue my understanding in neurological illnesses such as Alzheimers and Epilepsy. Inside the lab i saw that meaningful discovery was often found behind mountains of data and gathering of evidence. You dont only need to measure it, like we do during medschool, but also process, model, interpret and translate them. I felt the need to learn more tools in order to interpret these signals better.
 
-So, programming and my interest in ML, which only were side interests used to create websites and journaling agents, became something i needed to understand deeper. To better this understanding, I not only started studying informatics in my 2nd semester, but also wanted to finish a big project that connected my interests together. This is why I am building NeuroSignalLab. 
+So, programming and my interest in ML, which only were side interests used to create websites and journaling agents, became something i needed to understand deeper. To better this understanding, I not only started studying informatics in my 2nd semester, but also wanted to finish a big project that connected my interests together. A model or app could always produce a number or a result. However to understand the ways of preserving the context of the biological signal, how the model was trained, its limitations and how to further develop the model, I knew I needed to amass much more knowledge, and experience first hand what it means to create a reliable tool. This is why I am building NeuroSignalLab. 
+
 
 ## What I want to Understand
 I want to understand the full path from raw EEG data to machine-learning prediction. That means not only training a model, but also learning how models are evaluated, and why interpretation must be handled carefully. Using my knowledge from a neurophysiology lab, I want to understand how this process can be automated and made more efficient. 
@@ -28,7 +28,6 @@ I want to understand the full path from raw EEG data to machine-learning predict
 I also want to understand why EEG machine learning is difficult. EEG signals are noisy, subject-specific, artifact-sensitive, and easy to evaluate incorrectly if data leakage occurs.
 
 ## Initial Research Question
-
 How reliably can classical machine-learning and EEG deep-learning models decode motor-imagery states from open EEG records?
 
 What do preprocessing, evaluation design, and interpretability reveal about the limits of applying EEG machine-learning to neurotechnology or clinical contexts?
@@ -61,6 +60,8 @@ Interpretability methods such as saliency maps or occlusion sensitivity CAN show
 This week I created the initial repository for the project, as well as drafted the README and updated the Project Story. The project should make a tool that is consistent and reproducible, and seriously tackle the challenges related to training models. It should end up being a quality product, not just used for learning. 
 
 THe most important insight was how to divide the project into different phases and realize which outputs need to be delivered. What was mostly taken for granted in my labs, such as csvs with metadata, separation into epochs, must be clearly stated in the README as essential steps in this process. The README should be precise, and it took time to figure out the correct structure to make it sensible. I understand the importance of making the model I train reproducible for others. 
+
+It was most important to remember that saving the appropriate metadata to the correct epoch is the most crucial step in data loading. you need the correct subject, the correct channels, correct sampling and event label. This is very important for every EEG program. 
 
 The next step is to provide a notebook with the fundamental knowledge required to understand EEG and neural signal processing. Then, we can load and refine the raw EEG data. 
 
