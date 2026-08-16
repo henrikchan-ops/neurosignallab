@@ -1,23 +1,55 @@
 # EEG Basics
+Based on Mike X Cohen´s NEW ANTS series
 
-## What is EEG?
+## Intro - EEG is source separation
 
-## Channels and Electrodes
+Neuroscience is source separation
 
-## Sampling Frequency
+Basically we have true sources we cannot measure, so instead we use sensors to measure it
+Problem: The sensors contain multiple true sources -> creates noise
+We want to weight a combination which can give an estimate of the source we want ot measure (without the noise) -> more similar to true source
+This is called “source” components
 
-## Raw EEG
+How can sources be separated?
+Anatomically -> studying specific regions
+Cognitively -> studying specific cognitive processes (for instance only long-term memory)
+Statistically -> This is what will be used in this project
 
-## Events and Annotations
+Source separation via filtering
+Temporal/spectral filtering -> take measured data and combine it so that it gets weighted by a function -> This is what is done in this project
+Spatial filtering -> Each channel is affected by the weight at each time point
 
-## Epochs
+Assumptions for spectral separation
+Usually you have a noise and signal source
+You cannot use perfect source separation -> signal and noise will be mixed in a spectrum -> impossible to separate with spectral separation
 
-## Motor Imagery
+## Definitions
 
-## Mu/Alpha and Beta Rhythms
 
-## Artifacts
 
-## Why EEG Machine Learning Is Difficult
 
-## What I Need to Check Before Modeling
+## What is EEG and how to interpret it
+
+### Origins of EEG and EEG data
+Communication through electrochemical signaling
+Ions go into and out of neuron and creates a spatial asymmetry -> creates electrical field
+With EEG -> A larger electrode on the scalp -> cannot measure single neuron electrical field
+Many neurons activate simultaneously -> collective electrical field transmit all the way to the scalp -> that gets measured
+
+### Origins of content of EEG signals
+We want to know what the signals mean -> information can be manifested as a signal
+Cognition comes from interacting between neurons -> EEG is what can you say about brain computation from signals
+This is hard to analyze -> we dont know what the origin of the contents are
+
+### Advantages of EEG
+Direct measure of electrical brain activity
+Temporal resolution and precision match speed of cognition
+They are complex and rich -> many analyses can be made
+Findings can be linked across scales, methods and species -> can measure meaningful activity at every scale
+
+### Disadvantages of EEG
+Limited to synchronous large scale potentials -> cannot measure individual neurons
+Two opposing electrical fields will cancel each other out -> no signal measured
+Uncertainties in anatomical localization -> where in the brain does the signal come from -> However might not need to have physical evidence
+Data is complex -> lots of noise, complicated, time-consuming and annoying
+Sometimes too high temporal precision and resolution -> problem for slower processes 
