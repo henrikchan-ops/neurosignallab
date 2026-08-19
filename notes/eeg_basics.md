@@ -113,13 +113,14 @@ Run ICA to clean data -> find what you want to remove from dataset
 
 ### What is raw data, and how do we use it?
 
-A raw object represents continuous EEG data recording as well as important metadata. 
+A raw object represents continuous EEG data recording as well as important metadata. In this project they are stored in EDF files. 
+This means that everything is stored into one file -> events, labels, metadata, sampling frequency -> all in one file. 
 
-From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. 
+From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. Epochs are discontinuous cut-out data segments that include events that we want to further inspect.
 
-We then wish to find the events inside of the data. Which we then enter into an event_id dictionary. 
+We then wish to find the events inside of the raw-data. Which we then enter into an event_id dictionary. Now that we have all the necessary info, and the events extracted, we can convert the raw object and events array to epochs. 
 
-Using the raw object and events array, we convert it into epochs with mne-Epochs. Here we use the raw-data, list of events, the event dictionary and mark the alloted time-slot. You can also reject events using certain criteria. 
+Here we use the raw-data, list of events, the event dictionary, and mark the alloted time-slot. You can also reject events using certain criteria. 
 
 The workflow becomes: 
 Load continuous data -> inspect metadata -> event extraction -> convert into epochs
@@ -127,15 +128,21 @@ Load continuous data -> inspect metadata -> event extraction -> convert into epo
 
 ### What are annotations?
 
-An annotation contains stored event inside of a recording file. Using the annotation, we can extract events and put it into the event-dictionary. The resulting dictionary can then be used to create Epochs from the Raw-data. 
+Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract events and put it into the event-dictionary. The resulting dictionary can then be used to create Epochs from the Raw-data. 
 
-You can more easily think about it like this: 
-Annotations = Readable table that displays electrical activity for all channels of the EEG attached to timepoints
+An annotation is divided into: 
+Onset -> time until event starts
+Description -> what happened during event
+Duration -> how long the event lasts
 
-The differences in electrical activity signal different events, like rest or task-related events. To be able to convert annotations into an array, the events within the experiment should be mapped out.
+The differences in electrical activity, signal different events, like rest or task-related events. To be able to convert annotations into an array, the events within the experiment should be mapped out.
 
 Events = The eletrical signals converted into a numerical array 
 Epoch = A cut-out EEG window around an event
+
+### How do we spot activity?
+
+Because event-related desynchronization during movement and imagery typically is observed around alpha/mu (8-13 Hz) and beta (15-25) Hz, we can filter the EEG signal inside this bandwidth after preprocessing. 
 
 ### Understanding PhysioNet´s EEG Motor Movement/Imagaery dataset
 
@@ -146,7 +153,7 @@ We wish to use the data from the BCI to decode whether or not there was imagined
 
 Format: EDF+
 Channels: 64 EEG channels
-Sampling rate: 160 Hz
+Sampling rate: 160 Hz (samples per second)
 Tasks: Real and imagined motor movement
 
 Labels: 
@@ -158,15 +165,17 @@ There were 14 total runs for each subject, outlined more clearly in a older vers
 
 Then as we map out other runs, labels need to be recorded and changed. 
 
-### MOABB, What to understand moving onto ML-development
+### MOABB, What to understand moving onto ML-development: benchmarking of BCI
 
 EEG-data is noisy, subject specific and sensitive to artefacts, making it difficult to concisely generalize and train. The model can usually appear very strong if the train/test split of data is too easy. The same applies if similar epochs/subjects/recording sessions are in both train and test datasets. 
 
 It is therefore important to have and compare different evaluation strategies: 
 
-WIthin-session evaluation - can the model classify new trials from same recording-context
+Within-session evaluation - can the model classify new trials from same recording-context
 Cross-session evaluation - can the model classify data from another session of the same subject
 Cross-subject evaluation - can the model classify data from a new person?
+
+This way we subject the model to generalization -> if the model works on data it has never seen before
 
 
 ### Understanding EEGNet, convolutional neural networks for EEG-based BCIs
