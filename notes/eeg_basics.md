@@ -1,5 +1,14 @@
 # EEG Basics
-Based on Mike X Cohen´s NEW ANTS series
+
+Sources: 
+
+Mike C Cohen´s NEW ANTS series
+
+EEG Motor Movement/Imgaery Dataset v1.0.0
+
+MNE Over of Python
+
+MNE Annotations and events
 
 ## Intro - EEG is source separation
 
@@ -76,6 +85,29 @@ often you can remove the whole electrode and calculate mathematically based on n
 You can interpolate the channel for the artefact trials or run ICA -> 
 Artefacts can often be mixed in with signals here
 Obviously during collection keep an eye on the electrode and fix it mid analysis
+
+## What is preprocessing?
+
+Preprocessing: 
+Time-consuming
+Tedious
+If you do it well, you only do it once
+
+Processing: 
+Hypothesis and exploratory
+Needs to be done multiple times
+
+Preprocessing steps (depending on data, study and lab)
+Import data into Python
+Apply high-pass filter -> to remove artefacts and noise
+Import channel locations -> for topographical mapping
+Epoch data around important events -> put focus on interesting data -> Makes data 3d -> time channels and epoch/trials
+Subtract pre-stimulus baseline -> similar to effects of high-pass filter
+Adjust marker values 
+Manual trials rejection -> removes artefacts and noise -> can be done differently (in accordance to type 1 and 2 mistakes)
+Mark bad electrodes -> noisy electrodes
+Average reference EEG channels -> or at least rereference EEG channels in a way -> avoid electrodes on one side of the head -> the reference electrode should be as clean as possible
+Run ICA to clean data -> find what you want to remove from dataset
 
 ## Understanding the pathway from raw data to deep-learning model
 
