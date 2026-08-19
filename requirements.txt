@@ -1,2 +1,8 @@
 
-pip install numpy pandas matplotlib scikit-learn mne jupyter ipykernel
+numpy
+pandas
+matplotlib
+scikit-learn
+mne
+jupyter
+ipykernel
