@@ -14,47 +14,38 @@ MNE Annotations and events
 
 Electroencephalography or EEG is a method for recording brain activity from electrodes placed on the scalp. That means that EEG cannot measure individual neurons. Instead, it records large-scale synchronous potential/electrical activity. 
 
-The data from the EEG is sampled from multiple electrodes repeatedly over time. This creates a time-frequency table for all electrode channels. This table can later be filter and used to represent events and brain activity. 
+The data from the EEG is sampled from multiple electrodes repeatedly over time. This creates a time-frequency table for all electrode channels. This table can later be filtered and used to represent events and brain activity. 
 
 ### Origins of EEG and EEG data
-Communication through electrochemical signaling
-Ions go into and out of neuron and creates a spatial asymmetry -> creates electrical field
-With EEG -> A larger electrode on the scalp -> cannot measure single neuron electrical field
-Many neurons activate simultaneously -> collective electrical field transmit all the way to the scalp -> that gets measured
+EEG data is communication through electrochemical signaling. Ions go into and out of neuron and creates a spatial asymmetry, which create electrical fields. 
+With EEG, alarger electrode on the scalp, youcannot measure single neuron electrical field
+Many neurons activate simultaneously and create a collective electrical field that transmit all the way to the scalp. This si what gets measured. 
 
-We want to know what the signals mean -> information can be manifested as a signal
+We want to know what the signals meaninformation can be manifested as a signal
 Cognition comes from interacting between neurons -> EEG is what can you say about brain computation from signals
 This is hard to analyze -> we dont know what the origin of the contents are
 
 ## 2. Why EEG Is Difficult to Interpret
 
-### Disadvantages of EEG
-Limited to synchronous large scale potentials -> cannot measure individual neurons
-Two opposing electrical fields will cancel each other out -> no signal measured
-Uncertainties in anatomical localization -> where in the brain does the signal come from -> However might not need to have physical evidence
-Data is complex -> lots of noise, complicated, time-consuming and annoying
-Sometimes too high temporal precision and resolution -> problem for slower processes 
+EEG is difficult because it is a sensor that measures brainwaves, a true source we cannot measure. The EEG signals contain multiple true sources, as brainwaves from multiple regions can be picked up by one electrode. This creates noise. 
 
-Basically brain waves are true sources we cannot measure, so instead we use sensors to measure it
-The problem is the sensors contain multiple true sources -> creates noise
-We want to weight a combination which can give an estimate of the source we want ot measure (without the noise) -> more similar to true source
-This is called “source” components
+Because it studies larger areas, two opposing electrical fields can cancel eachother out. We can also not precisely pinpoint the anatomical localization and exactly where the signal is coming from. 
 
-How can sources be separated?
-Anatomically -> studying specific regions
-Cognitively -> studying specific cognitive processes (for instance only long-term memory)
-Statistically -> This is what will be used in this project
+EEG data contains a lot of noise, its complicated and can be time-consuming. 
 
-Source separation via filtering
-Temporal/spectral filtering -> take measured data and combine it so that it gets weighted by a function -> This is what is done in this project
-Spatial filtering -> Each channel is affected by the weight at each time point
-
-Assumptions for spectral separation
-Usually you have a noise and signal source
-You cannot use perfect source separation -> signal and noise will be mixed in a spectrum -> impossible to separate with spectral separation
+A way of bypassing this is by filtering the data. We can separate it using different frequencies and combine the weighted data that gets weighted by a function. 
 
 ## 3. Channels and Electrodes
 ## 4. Sampling Frequency
+
+Sampling frewuency means how many measurements are taken per second. If EEG sampled 160 Hz, the channel is measured 160 times per second.
+
+The PhsyioNet motor-imagery dataset has a sampling frequency of 160 Hz. A 4-second Epoch would contain: 
+
+160 samples/second * 4 seconds = 640 time samples
+
+The sampling frequency determines the number of time points in each epoch and the shape of the input to the ML-model. 
+
 ## 5. EDF Files
 ## 6. MNE Raw Objects
 
@@ -73,17 +64,12 @@ Load continuous data -> inspect metadata -> event extraction -> convert into epo
 
 ## 7. Events, Annotations, Onset, and Duration
 
-Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract events and put it into the event-dictionary. The resulting dictionary can then be used to create Epochs from the Raw-data. 
+Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract the numerical timing markers called Events. Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting Event-dictionary can then be used to create Epochs from the Raw-data. 
 
 An annotation is divided into: 
 Onset -> time until event starts
 Description -> what happened during event
 Duration -> how long the event lasts
-
-The differences in electrical activity, signal different events, like rest or task-related events. To be able to convert annotations into an array, the events within the experiment should be mapped out.
-
-Events = The eletrical signals converted into a numerical array 
-Epoch = A cut-out EEG window around an event
 
 ## 8. Epochs
 ## 9. Motor Imagery
@@ -164,6 +150,10 @@ Obviously during collection keep an eye on the electrode and fix it mid analysis
 
 ## 13. Train/Test Splits and Generalization
 
+A split means dividing data into different parts for model development and evaluation. 
+A training set is data the model learns from. 
+A test set is held back and used to evaluate how well the model performs. 
+
 EEG-data is noisy, subject specific and sensitive to artefacts, making it difficult to concisely generalize and train. The model can usually appear very strong if the train/test split of data is too easy. The same applies if similar epochs/subjects/recording sessions are in both train and test datasets. 
 
 It is therefore important to have and compare different evaluation strategies: 
@@ -172,11 +162,16 @@ Within-session evaluation - can the model classify new trials from same recordin
 Cross-session evaluation - can the model classify data from another session of the same subject
 Cross-subject evaluation - can the model classify data from a new person?
 
-This way we subject the model to generalization -> if the model works on data it has never seen before
+This way we subject the model to generalization: if the model works on data it has never seen before. 
+A mistake would be reporting one accuracy number without explaining what kind of generalization the split actually tested.
 
 ## 14. Why EEG Machine Learning Is Difficult
 
-EEGNet learns useful EEG features, but requires correct preprocessing, labelling and evaluation design. Its a reasonable comparison model, but it requires classic baslines and a simple CCN first. 
+EEGNet is a compact convolutional neural network designed for EEG-based BCI tasks. It is relevant to NeuroSignalLab because it can serve as a later deep-learning comparison model.
+
+However, EEGNet should not be the first model one implements. A simple CNN and classical baselines should be built first. EEGNet results will only be meaningful if preprocessing, labeling, and evaluation are handled correctly.
+
+We will come back to this later. 
 
 ## 15. What I Need to Check Before Modeling
 ## 16. Sources
