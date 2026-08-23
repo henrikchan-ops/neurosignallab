@@ -27,17 +27,17 @@ Channel names matter because EEG is spatially organized in a topographical map. 
 
 In code, channels will appear in `raw.ch_names` and in the channel arrays such as `n_epochs × n_channels × n_times`.
 
-A mistake would be treating all channels as interchangeable, or changing channel order across subjects without noticing.
+Channels are not interchangeable, and changing channel order across subjects without noticing can cause problems.
 
 ## 4. Sampling Frequency
 
-Sampling frewuency means how many measurements are taken per second. If EEG sampled 160 Hz, the channel is measured 160 times per second.
+Sampling frewuency means how many measurements are taken per second. If EEG is sampled 160 Hz, the channel is measured 160 times per second.
 
-The PhsyioNet motor-imagery dataset has a sampling frequency of 160 Hz.[^physionet-eegmmidb] A 4-second Epoch would contain: 
+The PhysioNet motor-imagery dataset has a sampling frequency of 160 Hz.[^physionet-eegmmidb] A 4-second epoch would contain: 
 
 160 samples/second * 4 seconds = 640 time samples
 
-The sampling frequency determines the number of time points in each epoch and the shape of the input to the ML-model. 
+The sampling frequency determines the number of time points in each epoch and the shape of the input to the ML model. 
 
 ## 5. EDF Files
 
@@ -51,27 +51,39 @@ The EDF file is not a cleaned machine-learning dataset. It is the raw recording 
 
 ## 6. MNE Raw Objects
 
-A raw object represents continuous EEG data recording as well as important metadata.[^mne-overview] In this project they are stored in EDF files. 
-In this project, the PhysioNet EDF+ files contain EEG signals and annotation channels. Important recording information such as sampling frequency and channel names can be accessed after loading the file with MNE. 
+An MNE `Raw` object represents continuous EEG data after it has been loaded into Python. In this project, the original recordings are stored as EDF+ files, and MNE will load those files into `Raw` objects.[^mne-overview]
 
-From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. Epochs are discontinuous cut-out data segments that include events that we want to further inspect.[^mne-events]
+A `Raw` object contains the continuous signal and important metadata. This metadata includes information such as sampling frequency, channel names, channel types, recording duration, and annotations.
 
-We then wish to find the events inside of the raw-data. Which we then enter into an event_id dictionary. Now that we have all the necessary info, and the events extracted, we can convert the raw object and events array to epochs. 
+The basic workflow is:
 
-Here we use the raw-data, list of events, the event dictionary, and mark the alloted time-slot. You can also reject events using certain criteria. 
+1. Load the EDF+ file into an MNE `Raw` object.
+2. Inspect the metadata using `raw.info`.
+3. Inspect channel names using `raw.ch_names`.
+4. Inspect annotations using `raw.annotations`.
+5. Convert annotations into events.
+6. Use the events to create epochs.
 
-The workflow becomes: 
-Load continuous data -> inspect metadata -> event extraction -> convert into epochs
+In code, this may look like:
+
+raw = mne.io.read_raw_edf(file_path, preload=True)
+events, event_id = mne.events_from_annotations(raw)
+epochs = mne.Epochs(raw, events, event_id=event_id, tmin=0, tmax=4)
 
 
 ## 7. Events, Annotations, Onset, and Duration
 
-Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract the numerical timing markers called Events. Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting Event-dictionary can then be used to create Epochs from the Raw-data.[^mne-annotations] 
+Annotations are time labels attached to events in the raw recording. In MNE, annotations describe when something happens in the recording and usually include three important pieces of information: onset, duration, and description.[^mne-annotations]: 
 
-An annotation is divided into: 
 Onset -> the time, usually in seconds from the start of the recording, when the event begins
-Description -> what happened during event
+Description -> what happened during event, marked for instance with `T0`, `T1`, or `T2`
 Duration -> how long the event lasts
+
+Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting event_id dictionary can then be used to create epochs from the raw data.[^mne-annotations] 
+
+Basically, annotations and events are the same things; just that events can be used inside of Python (just like how the EDF loads into raw data)
+
+In this project, annotations such as `T0`, `T1`, and `T2` will be converted into events before creating motor-imagery epochs.
 
 ## 8. Epochs
 
@@ -81,26 +93,27 @@ Epochs matter because the model will classify short windows of EEG associated wi
 
 In code, epochs will first appear as an MNE `Epochs` object. Later, they can be converted into arrays shaped like `n_epochs × n_channels × n_times`.
 
-Before creating epochs, you need to understand the event labels. Using random epochs in a train/test split causes leakage.
+Before creating epochs, I need to understand the event labels and decide the time window around each event. Using epochs highly related or incorrectly labeled in a train/test split causes leakage.
 
 ## 9. Motor Imagery
 
-What is motor imagery?
-Imagined movement without performing it
+Motor Imagery means imagined movement without performing it.
 
-We wish to use the data from the BCI to decode whether or not there was imagined movement from the EEG. 
+I wish to use the data from the bran-computer interface (BCI) to decode whether or not there was imagined movement from the EEG. Motor imagery creates a controlled EEG classification problem connected to BCI.
 
-Format: EDF+
-Channels: 64 EEG channels
-Sampling rate: 160 Hz (samples per second)
-Tasks: Real and imagined motor movement
+The PhysioNet EEG Motor Movement/Imagery dataset contains:
 
-Labels: 
+- Format: EDF+
+- Channels: 64 EEG channels
+- Sampling rate: 160 Hz (samples per second)
+- Tasks: Real and imagined motor movement
+
+And the events labeled as such: 
 T0 -> rest
 T1 -> left-fist or both-fists movement/imagery
 T2 -> right fist or both feet movement/imagery
 
-There were 14 total runs for each subject, outlined more clearly in a older version of the dataset. Runs 4, 8 and 12 have T1 as imagined left fist and T2 as imagined right fist. Since labels T1 and T2 change, we start first with runs 4,8 and 12 to isolate the motor-imagery tasks.[^physionet-eegmmidb] 
+The meaning of `T1` and `T2` changes depending on the run type. Therefore, the first version of the project will focus on runs 4, 8, and 12, where `T1` and `T2` correspond to imagined left and right fist movement.[^physionet-eegmmidb]
 
 Then as we map out other runs, labels need to be recorded and changed. 
 
@@ -125,54 +138,53 @@ We will come back to this later.
 
 ## 12. Artifacts and Cleaning
 
-Data cleaning varies between experiments, labs and data
+Artifacts are signals in the EEG recording that do not come from the neural activity of interest. They can come from eye movements, blinks, muscle activity, movement, electrode problems, electrical noise, or edge effects from filtering and time-frequency analysis.[^cohen-notes]
 
-VIsual based artefact rejection first
+Artifact handling depends on the dataset, experiment, and research question. We need to decide whether an artifact contaminates the part of the data needed for analysis or not.
 
-Can you separate artefacts or do you have to remove them?
+Common artifact-handling strategies include:
 
-Keep in mind, eye movements can cause deflections -> they are artefacts
+- visual inspection of raw EEG
+- marking bad channels
+- rejecting heavily overlapping/contaminated epochs
+- interpolating (synchronizing frequencies of) bad channels when appropriate
+- using ICA (independent component analysis) to identify and remove separable artifact components
+- avoiding or trimming edge regions affected by filtering or time-frequency analysis
 
-Are procedures that can separate those with independent component analysis (ICA)
-You can have overlapping data in epoch series -> ask if you need to remove that trial
+A key decision is whether an artifact can be separated from the neural signal or whether the affected channel/epoch should be removed. For example, a brief artifact in an irrelevant channel may not require removing the entire trial, while an artifact in a channel or time window central to the analysis may make that epoch unusable.
 
-How long does it last? Is it synchronized? However, you dont have to throw out data because of brief and spatially localized data
+Artifact handling will be conservative at first. I will inspect raw EEG, look for obviously bad channels or extreme signal problems, and document any exclusion decisions. More advanced cleaning methods such as ICA can be added later if needed.
 
-Usually edge-artefacts can occur -> If you apply time-frequency analysis you can remove -> make a buffer zone that you would remove regardless
-
-If artefacts occurs in areas you want to analyze data -> might need to remove the trial
-
-Also keep in mind, which electrodes will you be doing data analysis. 
-
-Electrical artefacts can occur: 
-often you can remove the whole electrode and calculate mathematically based on neighbouring electrodes ->
- But if it has real activity you need to reconsider 
-You can interpolate the channel for the artefact trials or run ICA -> 
-Artefacts can often be mixed in with signals here
-Obviously during collection keep an eye on the electrode and fix it mid analysis
+A mistake would be applying automatic cleaning without understanding what was removed.
 
 ## 13. Train/Test Splits and Generalization
 
 A split means dividing data into different parts for model development and evaluation. 
 A training set is data the model learns from. 
-A test set is held back and used to evaluate how well the model performs. 
+A test set is held back and used to evaluate how well the model performs on new data.
 
-EEG-data is noisy, subject specific and sensitive to artefacts, making it difficult to concisely generalize and train. The model can usually appear very strong if the train/test split of data is too easy. The same applies if similar epochs/subjects/recording sessions are in both train and test datasets. 
+A naive random split randomly divides all epochs into training and testing data without considering subject, session, or recording structure. In EEG, this can be misleading because epochs from the same subject or session may be highly similar. If similar epochs appear in both training and testing, the model may look stronger than it actually is.
 
-It is therefore important to have and compare different evaluation strategies: 
+EEG data is noisy, subject-specific and sensitive to artifacts, making it difficult to concisely generalize and train. The model can usually appear very strong if the train/test split of data is too similar to epochs/subjects/recording sessions.
+
+It is therefore important to have and compare different evaluation strategies. MOABB organizes BCI evaluation around schemes such as within-session, cross-session, and cross-subject evaluation.[^moabb]: 
 
 Within-session evaluation - can the model classify new trials from same recording-context
 Cross-session evaluation - can the model classify data from another session of the same subject
 Cross-subject evaluation - can the model classify data from a new person?
 
-This way we subject the model to generalization: if the model works on data it has never seen before. 
-A mistake would be reporting one accuracy number without explaining what kind of generalization the split actually tested.
+This way we test if the model works unseen data: generalization. 
+
 
 ## 14. Why EEG Machine Learning Is Difficult
 
 EEG machine learning is difficult because EEG is noisy, subject-specific, artifact-sensitive, and easy to evaluate incorrectly. A model may appear strong if the train/test split is too easy or if similar epochs from the same subject/session appear in both training and testing.
 
-Deep-learning models such as EEGNet may be useful later, but they do not solve these problems automatically. Their results still depend on preprocessing, labeling, and evaluation design.
+Another challenge is that EEG signals vary between individuals. A pattern learned from one subject may not generalize to another subject. This is especially important for motor-imagery decoding because people can produce different neural patterns during the same imagined movement task.
+
+Deep-learning models such as EEGNet may be useful later, but they do not solve these problems automatically. Their results still depend on preprocessing, labeling, and evaluation design.[^eegnet]
+
+The goal is to understand how preprocessing, feature extraction, model choice, and evaluation design affect the reliability of EEG decoding.
 
 ## 15. What I Need to Check Before Modeling
 
@@ -207,7 +219,7 @@ The purpose of these checks is to avoid building a model that runs technically b
 
 [^eegnet]: Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M., Hung, C. P., & Lance, B. J. *EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces*. Journal of Neural Engineering, 2018. https://pubmed.ncbi.nlm.nih.gov/29932424/.
 
-[^erd]: Neuper/Pfurtscheller-related ERD literature summarized in motor-imagery EEG studies; for example, sensorimotor ERD is commonly discussed in alpha/mu and beta frequency bands during movement and imagery. See: https://pmc.ncbi.nlm.nih.gov/articles/PMC6795263/. Accessed 2026-08-23.
+[^erd]: Pfurtscheller, G., & Lopes da Silva, F. H. Event-related EEG/MEG synchronization and desynchronization: basic principles. *Clinical Neurophysiology*, 1999. Or use a specific motor-imagery ERD review/paper if cited directly.
 
 
 
