@@ -207,19 +207,19 @@ The purpose of these checks is to avoid building a model that runs technically b
 
 [^cohen-notes]: Cohen, Mike X. *NEW ANTs / Neural Signal Processing and Analysis* course notes. Personal study notes/PDF. Used for EEG interpretation, source separation, preprocessing, artifacts, Fourier/time-frequency concepts.
 
-[^mne-overview]: MNE-Python. *Overview of MEG/EEG analysis with MNE-Python*. https://mne.tools/stable/auto_tutorials/intro/10_overview.html. Accessed 2026-08-23.
-
-[^mne-events]: MNE-Python. *Parsing events from raw data*. https://mne.tools/stable/auto_tutorials/intro/20_events_from_raw.html. Accessed 2026-08-23.
+[^eegnet]: Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M., Hung, C. P., & Lance, B. J. *EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces*. Journal of Neural Engineering, 2018. https://pubmed.ncbi.nlm.nih.gov/29932424/.
 
 [^mne-annotations]: MNE-Python. *mne.Annotations*. https://mne.tools/stable/generated/mne.Annotations.html. Accessed 2026-08-23.
 
-[^physionet-eegmmidb]: PhysioNet. *EEG Motor Movement/Imagery Dataset v1.0.0*. https://physionet.org/content/eegmmidb/1.0.0/. Accessed 2026-08-23.
+[^mne-events]: MNE-Python. *Parsing events from raw data*. https://mne.tools/stable/auto_tutorials/intro/20_events_from_raw.html. Accessed 2026-08-23.
+
+[^mne-overview]: MNE-Python. *Overview of MEG/EEG analysis with MNE-Python*. https://mne.tools/stable/auto_tutorials/intro/10_overview.html. Accessed 2026-08-23.
 
 [^moabb]: MOABB. *Mother of All BCI Benchmarks Documentation*. https://moabb.neurotechx.com/docs/. Accessed 2026-08-23.
 
-[^eegnet]: Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M., Hung, C. P., & Lance, B. J. *EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces*. Journal of Neural Engineering, 2018. https://pubmed.ncbi.nlm.nih.gov/29932424/.
-
 [^erd]: Pfurtscheller, G., & Lopes da Silva, F. H. Event-related EEG/MEG synchronization and desynchronization: basic principles. *Clinical Neurophysiology*, 1999. Or use a specific motor-imagery ERD review/paper if cited directly.
+
+[^physionet-eegmmidb]: PhysioNet. *EEG Motor Movement/Imagery Dataset v1.0.0*. https://physionet.org/content/eegmmidb/1.0.0/. Accessed 2026-08-23.
 
 
 
