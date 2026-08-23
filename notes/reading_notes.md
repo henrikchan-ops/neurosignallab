@@ -1,6 +1,22 @@
 # Reading Notes
 
-## 1. MNE-Python: Raw, Events, Annotations, Epochs
+# Reading Notes
+
+## 1. Mike X Cohen / Neural Signal Processing Notes
+
+### Key points
+- EEG can be understood partly as a source-separation problem: sensors measure mixtures of hidden sources.
+- EEG measures large-scale synchronous electrical activity, not individual neurons.
+- Preprocessing is dataset- and study-specific.
+- Common preprocessing steps include filtering, epoching, marker adjustment, bad-electrode marking, rereferencing, and ICA.
+- Artifact handling depends on whether the artifact can be separated or whether the trial/channel must be rejected.
+
+### How this affects NeuroSignalLab
+- I should treat raw EEG as noisy sensor data, not direct access to a single neural source.
+- I need to document preprocessing decisions clearly.
+- I should distinguish preprocessing from modeling.
+- 
+## 2. MNE-Python: Raw, Events, Annotations, Epochs
 
 ### Source
 MNE-Python documentation: Parsing events from raw data.
@@ -18,7 +34,7 @@ MNE-Python documentation: Parsing events from raw data.
 - I need to understand the meaning of each event code before using it as a label.
 - The first real notebook should load a Raw object, inspect annotations, convert events, and only then create epochs.
 
-- ## 2. PhysioNet EEG Motor Movement/Imagery Dataset
+- ## 3. PhysioNet EEG Motor Movement/Imagery Dataset
 
 ### Source
 PhysioNet EEG Motor Movement/Imagery Dataset v1.0.0.
@@ -39,7 +55,7 @@ PhysioNet EEG Motor Movement/Imagery Dataset v1.0.0.
 - My first classification problem should probably be `T1` versus `T2` for imagined left/right fist.
 - A 4-second epoch at 160 Hz gives 640 time samples.
 
-- ## 3. MOABB Evaluation Concepts
+- ## 4. MOABB Evaluation Concepts
 
 ### Source
 MOABB documentation.
@@ -57,7 +73,7 @@ MOABB documentation.
 - Each split tests a different kind of generalization.
 - My final report should explain what the model was actually tested on.
 
-- ## 4. EEGNet
+- ## 5. EEGNet
 
 ### Source
 EEGNet paper.
