@@ -6,7 +6,7 @@ Electroencephalography or EEG is a method for recording electrical brain activit
 The data from EEG is sampled repeatedly over time from multiple electrode channels. In raw form, this creates a multi-channel time-series: `channels × time`. A time-frequency table is created later through signal-processing methods such as Fourier transform or wavelet convolution. 
 
 ### Origins of EEG and EEG data
-EEG data is communication through electrochemical signaling. Ions go into and out of neuronanl membranes and creates asymmetrical electrical fields. 
+EEG data is communication through electrochemical signaling. Ions go into and out of neuronal membranes and creates asymmetrical electrical fields. 
 A scalp EEG electrode cannot measure the electrical field of a single neuron. Instead, EEG measures the collective electrical activity of many neurons when their activity is sufficiently synchronized and strong enough to reach the scalp.[^cohen-notes]
 
 ## 2. Why EEG Is Difficult to Interpret
@@ -31,7 +31,7 @@ Channels are not interchangeable, and changing channel order across subjects wit
 
 ## 4. Sampling Frequency
 
-Sampling frewuency means how many measurements are taken per second. If EEG is sampled 160 Hz, the channel is measured 160 times per second.
+Sampling frequency means how many measurements are taken per second. If EEG is sampled 160 Hz, the channel is measured 160 times per second.
 
 The PhysioNet motor-imagery dataset has a sampling frequency of 160 Hz.[^physionet-eegmmidb] A 4-second epoch would contain: 
 
@@ -41,7 +41,7 @@ The sampling frequency determines the number of time points in each epoch and th
 
 ## 5. EDF Files
 
-EDF stands for European Data Format. EDF/EDF+ files are used to store physiological recordings such as EEG.
+EDF/EDF+ files are used to store physiological recordings such as EEG.
 
 In NeuroSignalLab, the PhysioNet motor-imagery recordings are stored as EDF+ files. These files contain the EEG signals and annotation information.
 
@@ -81,7 +81,7 @@ Duration -> how long the event lasts
 
 Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting event_id dictionary can then be used to create epochs from the raw data.[^mne-annotations] 
 
-Basically, annotations and events are the same things; just that events can be used inside of Python (just like how the EDF loads into raw data)
+Annotations and events are the related, but events can be used inside of Python (just like how the EDF files load into raw data)
 
 In this project, annotations such as `T0`, `T1`, and `T2` will be converted into events before creating motor-imagery epochs.
 
@@ -99,7 +99,7 @@ Before creating epochs, I need to understand the event labels and decide the tim
 
 Motor Imagery means imagined movement without performing it.
 
-I wish to use the data from the bran-computer interface (BCI) to decode whether or not there was imagined movement from the EEG. Motor imagery creates a controlled EEG classification problem connected to BCI.
+I wish to use the data from the brain-computer interface (BCI) to decode whether or not there was imagined movement from the EEG. Motor imagery creates a controlled EEG classification problem connected to BCI.
 
 The PhysioNet EEG Motor Movement/Imagery dataset contains:
 
@@ -180,7 +180,7 @@ This way we test if the model works unseen data: generalization.
 
 EEG machine learning is difficult because EEG is noisy, subject-specific, artifact-sensitive, and easy to evaluate incorrectly. A model may appear strong if the train/test split is too easy or if similar epochs from the same subject/session appear in both training and testing.
 
-Another challenge is that EEG signals vary between individuals. A pattern learned from one subject may not generalize to another subject. This is especially important for motor-imagery decoding because people can produce different neural patterns during the same imagined movement task.
+Another challenge is that EEG signals vary between individuals. A pattern learned from one subject may not generalize to another subject. Sensorimotor rhythm patterns and classification performance can vary across subjects, making cross-subject evaluation harder than random epoch splitting.[^inter-subject-variability][^mi-variability]
 
 Deep-learning models such as EEGNet may be useful later, but they do not solve these problems automatically. Their results still depend on preprocessing, labeling, and evaluation design.[^eegnet]
 
@@ -220,6 +220,8 @@ The purpose of these checks is to avoid building a model that runs technically b
 [^erd]: Pfurtscheller, G., & Lopes da Silva, F. H. Event-related EEG/MEG synchronization and desynchronization: basic principles. *Clinical Neurophysiology*, 1999. Or use a specific motor-imagery ERD review/paper if cited directly.
 
 [^physionet-eegmmidb]: PhysioNet. *EEG Motor Movement/Imagery Dataset v1.0.0*. https://physionet.org/content/eegmmidb/1.0.0/. Accessed 2026-08-23.
+
+[^inter-subject-variability]: Saha, S., Baumert, M., & others. *Intra- and Inter-subject Variability in EEG-Based Sensorimotor Brain Computer Interface: A Review*. Frontiers in Computational Neuroscience, 2020. https://pmc.ncbi.nlm.nih.gov/articles/PMC6985367/. Used for the claim that intra- and inter-subject EEG variability can reduce model transferability across sessions and subjects.
 
 
 
