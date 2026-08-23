@@ -12,22 +12,16 @@ MNE Annotations and events
 
 ## 1. What is EEG?
 
-Electroencephalography or EEG is a method for recording brain activity from electrodes placed on the scalp. That means that EEG cannot measure individual neurons. Instead, it records large-scale synchronous potential/electrical activity. 
-
-The data from the EEG is sampled from multiple electrodes repeatedly over time. This creates a time-frequency table for all electrode channels. This table can later be filtered and used to represent events and brain activity. 
+Electroencephalography or EEG is a method for recording brain activity from electrodes placed on the scalp. That means that EEG measures larger brain areas, not individual neurons. The data from the EEG is sampled from multiple electrodes repeatedly over time. This creates an overview of how channels act over time for all electrode channels. This can later be filtered and used to represent events and brain activity. 
 
 ### Origins of EEG and EEG data
 EEG data is communication through electrochemical signaling. Ions go into and out of neuron and creates a spatial asymmetry, which create electrical fields. 
-With EEG, alarger electrode on the scalp, youcannot measure single neuron electrical field
-Many neurons activate simultaneously and create a collective electrical field that transmit all the way to the scalp. This si what gets measured. 
-
-We want to know what the signals meaninformation can be manifested as a signal
-Cognition comes from interacting between neurons -> EEG is what can you say about brain computation from signals
-This is hard to analyze -> we dont know what the origin of the contents are
+With EEG, a larger electrode on the scalp, youcannot measure single neuron electrical field
+Many neurons activate simultaneously and create a collective electrical field that transmit all the way to the scalp. This si what gets measured.[^cohen-notes] 
 
 ## 2. Why EEG Is Difficult to Interpret
 
-EEG is difficult because it is a sensor that measures brainwaves, a true source we cannot measure. The EEG signals contain multiple true sources, as brainwaves from multiple regions can be picked up by one electrode. This creates noise. 
+EEG is difficult because it is a sensor that measures brainwaves, a true source we cannot measure. The EEG signals contain multiple true sources, as brainwaves from multiple regions can be picked up by one electrode. This creates noise.[^cohen-notes] 
 
 Because it studies larger areas, two opposing electrical fields can cancel eachother out. We can also not precisely pinpoint the anatomical localization and exactly where the signal is coming from. 
 
@@ -40,7 +34,7 @@ A way of bypassing this is by filtering the data. We can separate it using diffe
 
 Sampling frewuency means how many measurements are taken per second. If EEG sampled 160 Hz, the channel is measured 160 times per second.
 
-The PhsyioNet motor-imagery dataset has a sampling frequency of 160 Hz. A 4-second Epoch would contain: 
+The PhsyioNet motor-imagery dataset has a sampling frequency of 160 Hz.[^physionet-eegmmidb] A 4-second Epoch would contain: 
 
 160 samples/second * 4 seconds = 640 time samples
 
@@ -49,10 +43,10 @@ The sampling frequency determines the number of time points in each epoch and th
 ## 5. EDF Files
 ## 6. MNE Raw Objects
 
-A raw object represents continuous EEG data recording as well as important metadata. In this project they are stored in EDF files. 
+A raw object represents continuous EEG data recording as well as important metadata.[^mne-overview] In this project they are stored in EDF files. 
 This means that everything is stored into one file -> events, labels, metadata, sampling frequency -> all in one file. 
 
-From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. Epochs are discontinuous cut-out data segments that include events that we want to further inspect.
+From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. Epochs are discontinuous cut-out data segments that include events that we want to further inspect.[^mne-events]
 
 We then wish to find the events inside of the raw-data. Which we then enter into an event_id dictionary. Now that we have all the necessary info, and the events extracted, we can convert the raw object and events array to epochs. 
 
@@ -64,7 +58,7 @@ Load continuous data -> inspect metadata -> event extraction -> convert into epo
 
 ## 7. Events, Annotations, Onset, and Duration
 
-Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract the numerical timing markers called Events. Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting Event-dictionary can then be used to create Epochs from the Raw-data. 
+Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract the numerical timing markers called Events. Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting Event-dictionary can then be used to create Epochs from the Raw-data.[^mne-annotations] 
 
 An annotation is divided into: 
 Onset -> time until event starts
@@ -89,13 +83,13 @@ T0 -> rest
 T1 -> left-fist or both-fists movement/imagery
 T2 -> right fist or both feet movement/imagery
 
-There were 14 total runs for each subject, outlined more clearly in a older version of the dataset. Runs 4, 8 and 12 have T1 as imagined left fist and T2 as imagined right fist. Since labels T1 and T2 change, we start first with runs 4,8 and 12 to isolate the motor-imagery tasks. 
+There were 14 total runs for each subject, outlined more clearly in a older version of the dataset. Runs 4, 8 and 12 have T1 as imagined left fist and T2 as imagined right fist. Since labels T1 and T2 change, we start first with runs 4,8 and 12 to isolate the motor-imagery tasks.[^physionet-eegmmidb] 
 
 Then as we map out other runs, labels need to be recorded and changed. 
 
 ## 10. Mu/Alpha and Beta Rhythms
 
-Because event-related desynchronization during movement and imagery typically is observed around alpha/mu (8-13 Hz) and beta (15-25) Hz, we can filter the EEG signal inside this bandwidth after preprocessing. 
+Because event-related desynchronization during movement and imagery typically is observed around alpha/mu (8-13 Hz) and beta (15-25) Hz, we can filter the EEG signal inside this bandwidth after preprocessing.[^erd] 
 
 ## 11. Preprocessing
 
@@ -108,17 +102,9 @@ Processing:
 Hypothesis and exploratory
 Needs to be done multiple times
 
-Preprocessing steps (depending on data, study and lab)
-Import data into Python
-Apply high-pass filter -> to remove artefacts and noise
-Import channel locations -> for topographical mapping
-Epoch data around important events -> put focus on interesting data -> Makes data 3d -> time channels and epoch/trials
-Subtract pre-stimulus baseline -> similar to effects of high-pass filter
-Adjust marker values 
-Manual trials rejection -> removes artefacts and noise -> can be done differently (in accordance to type 1 and 2 mistakes)
-Mark bad electrodes -> noisy electrodes
-Average reference EEG channels -> or at least rereference EEG channels in a way -> avoid electrodes on one side of the head -> the reference electrode should be as clean as possible
-Run ICA to clean data -> find what you want to remove from dataset
+Preprocessing steps vary by dataset, study type, and lab, but commonly include importing data, filtering, importing channel locations, epoching, marker adjustment, trial rejection, bad-electrode marking, rereferencing, and ICA.[^cohen-notes]
+
+We will come back to this later. 
 
 ## 12. Artifacts and Cleaning
 
@@ -167,7 +153,7 @@ A mistake would be reporting one accuracy number without explaining what kind of
 
 ## 14. Why EEG Machine Learning Is Difficult
 
-EEGNet is a compact convolutional neural network designed for EEG-based BCI tasks. It is relevant to NeuroSignalLab because it can serve as a later deep-learning comparison model.
+EEGNet is a compact convolutional neural network designed for EEG-based BCI tasks.[^eegnet] It is relevant to NeuroSignalLab because it can serve as a later deep-learning comparison model.
 
 However, EEGNet should not be the first model one implements. A simple CNN and classical baselines should be built first. EEGNet results will only be meaningful if preprocessing, labeling, and evaluation are handled correctly.
 
@@ -176,12 +162,25 @@ We will come back to this later.
 ## 15. What I Need to Check Before Modeling
 ## 16. Sources
 
+## 16. Sources
 
-### Advantages of EEG
-Direct measure of electrical brain activity
-Temporal resolution and precision match speed of cognition
-They are complex and rich -> many analyses can be made
-Findings can be linked across scales, methods and species -> can measure meaningful activity at every scale
+[^cohen-notes]: Cohen, Mike X. *NEW ANTs / Neural Signal Processing and Analysis* course notes. Personal study notes/PDF. Used for EEG interpretation, source separation, preprocessing, artifacts, Fourier/time-frequency concepts.
+
+[^mne-overview]: MNE-Python. *Overview of MEG/EEG analysis with MNE-Python*. https://mne.tools/stable/auto_tutorials/intro/10_overview.html. Accessed 2026-08-23.
+
+[^mne-events]: MNE-Python. *Parsing events from raw data*. https://mne.tools/stable/auto_tutorials/intro/20_events_from_raw.html. Accessed 2026-08-23.
+
+[^mne-annotations]: MNE-Python. *mne.Annotations*. https://mne.tools/stable/generated/mne.Annotations.html. Accessed 2026-08-23.
+
+[^physionet-eegmmidb]: PhysioNet. *EEG Motor Movement/Imagery Dataset v1.0.0*. https://physionet.org/content/eegmmidb/1.0.0/. Accessed 2026-08-23.
+
+[^moabb]: MOABB. *Mother of All BCI Benchmarks Documentation*. https://moabb.neurotechx.com/docs/. Accessed 2026-08-23.
+
+[^eegnet]: Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M., Hung, C. P., & Lance, B. J. *EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces*. Journal of Neural Engineering, 2018. https://pubmed.ncbi.nlm.nih.gov/29932424/.
+
+[^erd]: Neuper/Pfurtscheller-related ERD literature summarized in motor-imagery EEG studies; for example, sensorimotor ERD is commonly discussed in alpha/mu and beta frequency bands during movement and imagery. See: https://pmc.ncbi.nlm.nih.gov/articles/PMC6795263/. Accessed 2026-08-23.
+
+
 
 
 
