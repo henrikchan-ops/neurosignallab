@@ -67,9 +67,22 @@ It was most important to remember that saving the appropriate metadata to the co
 
 The next step is to provide a notebook with the fundamental knowledge required to understand EEG and neural signal processing. Then, we can load and refine the raw EEG data. 
 
+## Week 2 Reflection — Technical Foundation
+
+This week, I moved from a project idea to creating a foundation note. I set up the local Python environment, installed the core packages, created the first Jupyter notebook, and confirmed that MNE-Python runs correctly inside the project environment.
+
+This week was about understanding that EEG is not a clean readout of thought or intention. Before any model can be meaningful, the data structure has to be understood. In my labs, the files were sorted into NWB files where the anatomical mapping, labels and events were clearly labeled. As I was working with connectivity and not motor-imagery, the channels to include were much more straightforward. 
+
+The structure of the previous files did much of the organizational work for me. Now the data-mapping process should be a lot more rigorous and attentive.  
+
+I also learned that the PhysioNet motor-imagery dataset contains runs, annotations, labels, and task-specific meanings that must be mapped carefully. In particular, labels such as `T1` and `T2` depend on the run type, so the first version of the project should focus on a controlled subset of motor-imagery runs before expanding. This will again differ from my previous EEG experience, as the experimental conditions were easier to distinguish from the file structure.” 
+
+The setup notebook is intentionally simple. It does not analyze EEG yet. Its purpose is to verify that the environment can import NumPy, Pandas, Matplotlib, scikit-learn, and MNE. This creates a clean starting point for the next notebook.
+
+The next step is to load a real EDF file from the PhysioNet dataset, inspect the `Raw` object, check metadata, inspect annotations, convert annotations into events, and begin visualizing real EEG data.
 
 
-### Week 2
+### Week 3
 
 **What did I build this week?**
 
@@ -84,8 +97,6 @@ The next step is to provide a notebook with the fundamental knowledge required t
 **How does this connect to my larger goal?**
 
 **What is the next step?**
-
-### Week 3
 
 ## Connection to application to the US
 THis project clarifies my interest in studying at intersections of medicine, informatics, neuroscience and human-centered AI. I am trying to build technical skills that can work with biological data, which furthers my medical understanding. 

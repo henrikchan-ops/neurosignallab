@@ -488,9 +488,21 @@ src/neurosignallab/  Reusable Python code
 
 ## Installation
 
+See requirements.txt
+
 ## Current Status
 
-Phase 1
+Week 2 completed:
+
+- Created project environment and requirements file
+- Verified MNE-Python setup in `notebooks/00_mne_setup_check.ipynb`
+- Wrote EEG foundations notes in `notes/eeg_basics.md`
+- Started source-specific notes in `notes/reading_notes.md`
+- Documented early project reflection in `notes/project_story.md`
+
+Next step:
+
+- Load and inspect the first PhysioNet EDF recording in `notebooks/01_load_verify_and_visualize_eeg.ipynb`
 
 ## How to Run
 
