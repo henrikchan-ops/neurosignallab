@@ -216,5 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#Extra
 .DS_Store
 .ipynb_checkpoints/
+data/raw/
+data/external/
+*.edf
+
