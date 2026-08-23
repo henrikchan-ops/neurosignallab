@@ -12,7 +12,7 @@ MNE Annotations and events
 
 ## 1. What is EEG?
 
-Electroencephalography or EEG is a method for recording brain activity from electrodes placed on the scalp. That means that EEG measures larger brain areas, not individual neurons. The data from the EEG is sampled from multiple electrodes repeatedly over time. This creates an overview of how channels act over time for all electrode channels. This can later be filtered and used to represent events and brain activity. 
+Electroencephalography or EEG is a method for recording brain activity from electrodes placed on the scalp. That means that EEG measures larger brain areas, not individual neurons. The data from EEG is sampled repeatedly over time from multiple electrode channels. In raw form, this creates a multi-channel time-series: `channels × time`. A time-frequency table is created later through signal-processing methods. 
 
 ### Origins of EEG and EEG data
 EEG data is communication through electrochemical signaling. Ions go into and out of neuron and creates a spatial asymmetry, which create electrical fields. 
@@ -30,6 +30,15 @@ EEG data contains a lot of noise, its complicated and can be time-consuming.
 A way of bypassing this is by filtering the data. We can separate it using different frequencies and combine the weighted data that gets weighted by a function. 
 
 ## 3. Channels and Electrodes
+
+A channel is one recorded EEG signal, usually associated with one electrode or electrode pair. Electrodes are the physical sensors placed on the scalp.
+
+Channel names matter because EEG is spatially organized in a topographical map. For example, central channels such as C3, Cz, and C4 are especially relevant in many motor-imagery settings because they lie near sensorimotor areas.
+
+In code, channels will appear in `raw.ch_names` and in the channel arrays such as `n_epochs × n_channels × n_times`.
+
+A mistake would be treating all channels as interchangeable, or changing channel order across subjects without noticing.
+
 ## 4. Sampling Frequency
 
 Sampling frewuency means how many measurements are taken per second. If EEG sampled 160 Hz, the channel is measured 160 times per second.
@@ -41,10 +50,19 @@ The PhsyioNet motor-imagery dataset has a sampling frequency of 160 Hz.[^physion
 The sampling frequency determines the number of time points in each epoch and the shape of the input to the ML-model. 
 
 ## 5. EDF Files
+
+EDF stands for European Data Format. EDF/EDF+ files are used to store physiological recordings such as EEG.
+
+In NeuroSignalLab, the PhysioNet motor-imagery recordings are stored as EDF+ files. These files contain the EEG signals and annotation information.
+
+In code, EDF files will be loaded with MNE using a function such as `mne.io.read_raw_edf(...)`.
+
+The EDF file is not a cleaned machine-learning dataset. It is the raw recording format, not the final ML input.
+
 ## 6. MNE Raw Objects
 
 A raw object represents continuous EEG data recording as well as important metadata.[^mne-overview] In this project they are stored in EDF files. 
-This means that everything is stored into one file -> events, labels, metadata, sampling frequency -> all in one file. 
+In this project, the PhysioNet EDF+ files contain EEG signals and annotation channels. Important recording information such as sampling frequency and channel names can be accessed after loading the file with MNE. 
 
 From the Raw data we extract from the dataset, we wish to gain the info related inside them and convert them into epochs. The info attribute to the raw-data includes sampling frequency, channels, channel names, etc. Epochs are discontinuous cut-out data segments that include events that we want to further inspect.[^mne-events]
 
@@ -61,11 +79,20 @@ Load continuous data -> inspect metadata -> event extraction -> convert into epo
 Annotations are time labels attached to events in the raw-data. Using the annotation, we can extract the numerical timing markers called Events. Events are numerical timing markers used to represent when experimental conditions occur. They tell the analysis code where in the continuous EEG recording a condition starts. The resulting Event-dictionary can then be used to create Epochs from the Raw-data.[^mne-annotations] 
 
 An annotation is divided into: 
-Onset -> time until event starts
+Onset -> the time, usually in seconds from the start of the recording, when the event begins
 Description -> what happened during event
 Duration -> how long the event lasts
 
 ## 8. Epochs
+
+An epoch is a short segment cut out from a longer continuous EEG recording, usually around an event or annotation.
+
+Epochs matter because the model will classify short windows of EEG associated with task conditions, not the entire continuous recording.
+
+In code, epochs will first appear as an MNE `Epochs` object. Later, they can be converted into arrays shaped like `n_epochs × n_channels × n_times`.
+
+Before creating epochs, you need to understand the event labels. Using random epochs in a train/test split causes leakage.
+
 ## 9. Motor Imagery
 
 What is motor imagery?
@@ -153,14 +180,26 @@ A mistake would be reporting one accuracy number without explaining what kind of
 
 ## 14. Why EEG Machine Learning Is Difficult
 
-EEGNet is a compact convolutional neural network designed for EEG-based BCI tasks.[^eegnet] It is relevant to NeuroSignalLab because it can serve as a later deep-learning comparison model.
+EEG machine learning is difficult because EEG is noisy, subject-specific, artifact-sensitive, and easy to evaluate incorrectly. A model may appear strong if the train/test split is too easy or if similar epochs from the same subject/session appear in both training and testing.
 
-However, EEGNet should not be the first model one implements. A simple CNN and classical baselines should be built first. EEGNet results will only be meaningful if preprocessing, labeling, and evaluation are handled correctly.
-
-We will come back to this later. 
+Deep-learning models such as EEGNet may be useful later, but they do not solve these problems automatically. Their results still depend on preprocessing, labeling, and evaluation design.
 
 ## 15. What I Need to Check Before Modeling
-## 16. Sources
+
+Before modeling, I need to check:
+
+- which subjects and runs are included
+- sampling frequency
+- channel names
+- channel order
+- annotation/event labels
+- epoch duration
+- filtering choices
+- whether bad channels or artifacts are present
+- whether train/test splits keep subjects or sessions separated when needed
+- what type of generalization each evaluation split tests
+
+The purpose of these checks is to avoid building a model that runs technically but produces misleading results.
 
 ## 16. Sources
 
