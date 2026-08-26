@@ -67,7 +67,7 @@ It was most important to remember that saving the appropriate metadata to the co
 
 The next step is to provide a notebook with the fundamental knowledge required to understand EEG and neural signal processing. Then, we can load and refine the raw EEG data. 
 
-## Week 2 Reflection — Technical Foundation
+## Week 2 — Technical Foundation
 
 This week, I moved from a project idea to creating a foundation note. I set up the local Python environment, installed the core packages, created the first Jupyter notebook, and confirmed that MNE-Python runs correctly inside the project environment.
 
@@ -82,7 +82,23 @@ The setup notebook is intentionally simple. It does not analyze EEG yet. Its pur
 The next step is to load a real EDF file from the PhysioNet dataset, inspect the `Raw` object, check metadata, inspect annotations, convert annotations into events, and begin visualizing real EEG data.
 
 
-### Week 3
+## Week 3 — First EEG Loading and Visualization
+
+This week, I moved from environment setup into working with real EEG data. I loaded the first PhysioNet EEG Motor Movement/Imagery EDF file, inspected the MNE `Raw` object, checked the sampling frequency, channel count, recording length, annotations, and event labels.
+
+I learned the specific documentation style of the dataset. Before training any classifier, I had to understand how the recording is structured: what the channels are called, where the channels are positioned on the scalp, the internal structure of the raw data, how the annotations are stored, how task labels are converted into events, and whether event timing is preserved correctly.
+
+Most of this week was understanding and figuring out how the EDF was structured internally by sourcing through the different attributes, arrays and metadata within the structure. For instance, figuring out what the data within the event array represented, and how to label it cleanly. The same adaptation was made to MNE´s data loading, specifically storing data in volts. 
+
+I also learned how to set a standard montage for the electrodes. It provided approximate standard scalp positions, which made it easier to understand which channels to consider combined with previous litterature. 
+
+Later, I verified that the event times matched the annotation onsets and created a compact event summary showing the number and timing range of `T0`, `T1`, and `T2`.
+
+Finally, I created basic visualizations: a raw EEG preview from central scalp electrodes and an event timeline across the recording. These plots are visual checks showing that the signal can be loaded, inspected, visualized, and connected to task labels.
+
+The next technical step is to move from continuous raw EEG into epochs. This means cutting the recording into time-locked segments around `T1` and `T2` events so that each segment can become one machine-learning example.
+
+### Week 4
 
 **What did I build this week?**
 
