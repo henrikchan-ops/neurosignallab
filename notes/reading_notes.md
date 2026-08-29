@@ -204,346 +204,417 @@ MNE Developers. (2026). *Working with sensor locations — MNE-Python 1.12.1 doc
 
 Schalk, G. (2009). *EEG Motor Movement/Imagery Dataset* (Version 1.0.0). PhysioNet. doi:10.13026/C28G6P.
 
+
 ## Week 4
 
-
 ### Notes for preprocessing
+#### 1) Physionet, what experiment produced the data?
 
-Q1
+The PhysioNet EEG Motor Movement/Imagery Dataset (EEGMMIDB) contains EEG recordings collected during motor execution and motor imagery tasks.[^physionet]
 
-left vs right is better
+The dataset contains recordings from 109 subjects. EEG was recorded using 64 scalp electrodes arranged according to the international 10-10 system at a sampling frequency of 160 Hz. The recordings are distributed in EDF+ format.[^physionet]
 
-Gives clear binary question -> Spatially more different sensorimotor EEG patterns
+Each subject completed 14 runs:
 
-Its easier to preserve, subject id, run id and trial id
+- Run 1: eyes-open baseline
+- Run 2: eyes-closed baseline
+- Runs 3, 7, and 11: executed left-versus-right fist movement
+- Runs 4, 8, and 12: imagined left-versus-right fist movement
+- Runs 5, 9, and 13: executed both-fists-versus-both-feet movement
+- Runs 6, 10, and 14: imagined both-fists-versus-both-feet movement[^physionet][^mne-eegbci]
 
-Runs 4, 8 and 12 gives us most data without making it too complicated -> make the research question harder to reach
+The meaning of the annotation labels depends on the type of run.
 
-S: Optimal spatial filtering
+For unilateral fist runs:
 
-Q2
-We want to not make T0 a classification
+- `T0` = rest
+- `T1` = onset of left-fist movement or imagery
+- `T2` = onset of right-fist movement or imagery
 
-Only T1 and T2: 
+For bilateral hand/foot runs:
 
-Because this way the model would easily be able to distinguish between task and no task, but perhaps not left vs right imagery
-
-THen it must explore more subtle differences
-Classic BCI work you treat it as a two class problem
-
-S: Optimal spatial filtering
-
-Q3
-Motor imagery typically works around mu 8-13 and beta 13-30
-
-Older work suggests that its invovled in mu and beta rhythms in ERD/ERS
-
-MNEs deconing pipeline uses 7-30, so we can use that. 
-
-It isnt optimal, but we can later filter into smaller sub-bands, but use a baseline of 7-30 Hz
-
-Be careful with filtering
-
-S: Motor imagery and exectuoin
-
-Mu and beta topo
-
-ERD, event related dynamics
-
-MNE CSP
-
-Optimal spatial filtering
-
-Q4 
-
-MNEs own ERD usees -1 to +4
-
-This is important so you can get context around the trial. 
-
-The EEGBCI example says it delays classification window by 1 second after ue onset to avoid classifying evoked responses -> We dont want to learn visual cues -> But the motor imagery
-
-So this way we have the sustained motor imagery, but avoid the initial cue response. 
-
-WE should store -1 to r, but use 1-4 for ML. 
-
-Q5
-Keep all channels 
-
-SPatial methods like CSP are designed to learn combinations of multiple channels
-
-We can later determine a predetermined subset of electrodes. 
-
-We dont want testdata information to influence feature selection
-
-Q6 EEG reference
-
-EEG is always relative to a refernce
-
-We use MNEs average referencing -> constructing a virtual refernce from the mean signal across all channels
-
-Q7 Baseline correction
-We are not trying to classify ERP amplitude -> but the oscillatory structures and later spatial/spectral features
-
-We can therefore use none. 
-
-For ERD visualizations we can use The precue period can be used as a baseline. -> But NOT for ML epochs
-
-We want to select preprocessing protocl before looking at performance. 
-
-### Notes for articles
-
-#### 1) Physionet, what experiment produced the data
-
-Subjects labeled 1-109
-64 electrodes at 160 Hz
-10-10 arrangement in an EDF+
-
-Performed 14 runs, with 1-2 as resting baselines: 
-
-Unilateral imagined
-
-Unilateral execution
-
-Bilateral imagined
-
-Bilateral execution
+- `T0` = rest
+- `T1` = onset of both-fists movement or imagery
+- `T2` = onset of both-feet movement or imagery[^physionet]
 
 We want to ask: 
-Can EEG distinguish imagined left-fist movement from imagined right-fist movement
+Can EEG distinguish imagined left-fist movement from imagined right-fist movement?
 
-Keep in mind only three runs per patient
+For the current project, runs 4, 8, and 12 provide three repetitions of the same left-versus-right motor-imagery task.
 
-#### 2) Shuqfa, Lakas & Belkacem (2024)
+#### 2) Dataset Quality Control: Shuqfa, Lakas & Belkacem
 
 Is the original PhysioNet dataset perfectly uniform?
 
-There are multiple missing trials, trials with length zero and issues. 
+Shuqfa, Lakas, and Belkacem systematically curated the dataset and excluded six subjects because of anomalies in the recordings, leaving 103 subjects in their curated version.[^shuqfa]
 
-We can skip 6 problematic subjects: 
+6 subjects reported non-standard recording structures:  
 
 S088
 S089
 S092
 S100
 S104
-S106
+S106 [^shuqfa][^domain-adaptation]
 
-Typical runs include: 
-15 T0
-7-8 T1 and T2 trials
-Events around 4.1 +- 0.2
-Runs around 123,5
+Later, we decide our own exclusion criteria. 
 
-We should program checks into the code. No all data is valid
+A typical task recording contains repeated rest and task intervals, with approximately 7–8 events of each task class per run. The task intervals are approximately four seconds long.[^shuqfa]
 
-#### 3) Pfurtscheller & Lopes da Silva ERD and ERS
+The preprocessing pipeline should therefore check:
 
-What biological signal are we trying to detect
+- recording duration
+- sampling frequency
+- channel availability
+- event labels
+- event counts
+- missing or abnormal trials
+- invalid numerical values
+- unusually flat or extreme signals
 
-Event related desynchronization ERD - When neuronal population gets engagaed, oscillations can become less synchronized -> EEG power in band decreases
+This process is called quality control, or QC.
 
-Event-related synchronizations ERS - 
+#### 3) Event-related Desynchronization and Synchronization: Pfurtscheller & Lopes da Silva
 
-ERD and ERS -> CHanges in ongoing oscillatory power -> not identical phase trial to trial
+What biological signal are we trying to detect?
 
-ERP -> Phase locked -> electrical deflection occurs at same latency eveyr cue -> you can average the trials
+ERD refers to an event-related decrease in oscillatory power within a particular frequency band.[^erd]. When neuroanl populations gets engaged, oscillations become less synchronized when comparing multiple populations.
 
-Motor-imgaery analysis cares about frequency, power, time and spatial location
+A neuronal population may exhibit a relatively strong ongoing rhythm before a task. When that network becomes engaged, the rhythmic activity can become less synchronized, causing the measured power in that frequency band to decrease.
+
+##### Event-Related Synchronization — ERS
+
+ERS refers to an event-related increase in oscillatory power within a particular frequency band.[^erd]
+
+ERD and ERS are:
+
+- frequency-specific
+- time-dependent
+- spatially dependent
+
+This means that ERD and ERS can occur at different times, in different frequency bands, and at different scalp locations.
+
+A commonly way to calcuate it would be using reference power:
+
+`(task power - reference power) / reference power × 100`
+
+For example:
+
+Resting mu power = 10  
+Imagery mu power = 6
+
+`(6 - 10) / 10 × 100 = -40%`
+
+The result represents a 40% reduction in power and therefore ERD.
+
+It is important not to confuse:
+
+1. **EEG reference** — the electrical reference against which electrode voltage is measured.
+2. **ERD/ERS reference period** — a time interval whose oscillatory power is used as a baseline for comparison.
+
+These are separate concepts.
+
+#### 4) What is Event-related potential?
+
+An ERP, or event-related potential, is a voltage response that occurs at a relatively consistent latency (delay) and phase (specific point in brainwave oscillation) relative to an event.[^erd]
+
+For example, a visual cue may produce a repeatable voltage deflection (voltage change) after the cue appears. If this response occurs at approximately the same time and phase across trials, averaging the trials preserves it.
+
+ERD/ERS describes changes in ongoing oscillatory power. The underlying oscillations do not need to have the same phase on every trial. What remains consistent is the change in power (amplitude).[^erd]
+
+Motor-imagery analysis cares about frequency, power, time and spatial location
+
+ERP:
+
+`event → repeatable voltage waveform`
+
+ERD/ERS:
+
+`event → change in oscillatory power`
+
+Motor imagery can produce both evoked responses (response to stimulus/ERP) and ERD/ERS.
+
+However, the primary interest for sustained motor imagery is change of ongoing sensorimotor rhythms rather than only the initial visually evoked response to the cue.[^erd][^mcfarland]
+
+This is one reason that a motor-imagery classifier may deliberately exclude the immediate period after cue onset.
+  
+
+##### How does ERD/ERS differ from ERP?
+
+ERP is a waveform that is consistent phase and latency relative to an event. For instance the ERP when a participant sees a visual cue -> the voltage deflection over trials is the ERP, because it occurs at roughly the same time and phase on every trial. 
+
+##### Why is motor imagery using ERD/ERS instead of ERP?
+The experiment is structured so that the participant get a visual cue before the movement gets imagined at t=0. The model can instead learn left-right visual stimulus instead left-hand vs right-hand imagery.[^mne-csp-example]
+
+Because ERP is voltage and analyzed in amplitude, it doesnt tell us about the brainstate of imagery -> which is a sustained state happening from 1-4s. ERP is instead a response to for instanse sensory response or processing. 
+
+#### 5) Why mu and beta: McFarland et al. 
+
+Which frequencies and scalp areas are relevant for hand motor imagery?
+
+McFarland et al. studied 64-channel EEG from participants performing or imagining left- and right-hand movements.[^mcfarland]
+
+They examined that during: 
+- mu rhythm: approximately 8–12 Hz
+- beta rhythm: approximately 18–25 Hz
+
+Both actual movement and imagined movement were associated with desynchronization in mu and beta activity. [^mcfarland]
+
+Mu desynchronization showed relatively lateral sensorimotor foci, while beta desynchronization was more diffuse and showed stronger activity near the vertex.[^mcfarland]
+
+##### Other definitions to keep in mind
+
+Focus (plural foci) - THe region where effect is strongest for that specific ERD/ERS/ERP. Though, it does not mean the exact cortical source beneath produced that signal.
+
+Vertex - Approximate location of the top-center of the head. Typically channels called Cz. THis is why C3, Cz and C4 are typical landmarks in motor-imagery EEG.
+
+Variance - how much a signal fluctuates around its mean. Often kan be used to interpret power by mean squared amplitude. CSP uses variance to identify class-discrimination. 
 
 
-For instance: 
+#### 6) Common Spatial Patterns: Ramoser et al.
 
-Resting mu power = 10
-Imgaery mu power = 6
+WHy keeping multiple channels can help with classification.
 
-6-10/10 * 100 = -40%
+Common Spatial Patterns (CSP) is a supervised spatial-filtering method designed to extract discriminative information from multichannel data.[^ramoser][^mne-csp]
 
-THat means theres a 40% power reduction -> ERD
+Instead of selecting one electrode, CSP learns weighted combinations of electrodes to distinguish between brainstates.
 
-Basically this is the process: 
+Conceptually, a CSP component could look like:
 
-EEG -> separate frequencies -> estimate power -> compare task power with pre-task power -> calculate relative change
+`component = 0.8 × C3 + 0.2 × Cz - 0.7 × C4 + ...`
 
-#### McFarland et al. Why mu, beta and central electrodes?
+The weights are learned from the data.
 
-Which frequencies and scalp areas are relevant for hand motor imagery
+CSP searches for spatial filters that produce large variance for one class and small variance for the other, combined with complementary filters showing the opposite pattern.[^ramoser]. CSP can then emphasize spatial patterns of oscillatory power that distinguish the two motor-imagery classes.
 
-in experiment: 
-mu = 8-12
-beta = 18-25
+##### Conceptual use of CSP
 
-Both actual and imagined movement produced desynchronization: 
+The conceptual timeline is:
 
-Mu = Lateral postcentral foci
-Beta = more diffuse and more strongly near the vertex
+`multichannel EEG`
 
-The differences between movement/rest and imagery/rest were cocentrated around 8-28 Hz
+→ `CSP spatial filters`
 
-#### Ramoser et al. Common Spatial Patterns
+→ `small number of CSP components`
 
-WHy keeping multiple channels can help with classification
+→ `component variance/power`
 
-CSP -> Which weighted combination of electrodes produces the largest distinction between the two classes?
+→ `usually log-transformed features`
 
-Learned spatial filters can discriminate
+→ `classifier`
 
-The weighting is learned from data
+→ `training data → fit CSP`
 
-CSP wants to maximize variance for one class and minimize for the other. 
+→ `test data → apply already-fitted CSP`
 
-Because band-limited oscillatory EEG, variance is closely related to signal power
+If all data is used to fit CSP, the test data will influence extraction and cause data leakage. 
 
-CSP uses class labels to learn its filters
+CSP is useful here because it is:
 
-Basically we have to do this: 
+- established in motor-imagery BCI research
+- interpretable
+- computationally efficient
+- designed for multichannel signals
+- directly sensitive to differences in class-related variance
 
-Training data -> fit CSP
+#### 7) Filtering is not harmless: Widmann, Schrøger and Maess 
 
-Test data -> apply already fitted CSP
+Filtering is a transformation of the signal, not simply the deletion of unwanted frequencies.[^widmann]
 
-If we fit CSP to the whole dataset, its wrong -> we need to preserve all necessary channel info for the future. 
+For the first motor-imagery baseline, the planned passband is:
 
-#### Motor imgaery decoding using CSP
-The best example that connects to our project
+`7–30 Hz`
 
-We can take inspiration from their code
+This choice includes the main mu and beta activity relevant to the current motor-imagery hypothesis and matches the frequency range used in MNE's standard motor-imagery CSP example.[^mne-csp-example]
 
-So the experiment is structured so that the participant sees something visually before the movement gets imagined: 
+Real filters cannot change instantaneously between a passband and stopband.
 
-At t=0 the participant sees something. If left and right cues differ -> We learn left and right visual stimulus 
+Instead, filters contain transition regions:
 
-And we dont learn left-hand vs right-hand imagery
+`stopband → transition band → passband → transition band → stopband`
 
-#### WIdmann, Schrøger and Maess. FIltering is not harmless
+Sharper filters can produce longer temporal ringing.[^widmann][^mne-filter]. Causing frequency domain and time-domain plots to be affected. 
 
-CUt off requency, transition bandwidth and phase can affect signals
+A good filter includes a transition band around the cutoff that slowly phases the signal out. Since you need datapoints around the edge to calculate an output, a sharp cutoff can create edge artifacts that can ring or distort frequency.
 
-What we choose to preserve is important
+#### 8) Filtering boundaries
 
-For instance, in MNE doesnot instantly disappear at 7-30 Hz
+Runs between subjects must be concatenated together in a recording, since filtering requires information from neighbouring samples. 
 
-We can use MNEs skip_by_annotation = "edge" to for instance avoid the end of Run 4 being concatenated with start of run 8
+The intended approach is to filter the continuous recording segments while respecting boundaries between runs. The end of one experimental run and the beginning of another are not physiologically continuous.
 
-We dont want to filter acroos discontinuities. And we perhaps want to filter between trials too. 
+MNE's `concatenate_raws()` marks recording boundaries with bad boundary annotations.[^mne-concat]
 
-#### MNE Epochs
+MNE's motor-imagery CSP example filters uses `skip_by_annotation="edge"` so the filter does not treat concatenated recording segments as one continuous signal.[^mne-csp-example]
+
+This is different from filtering every motor-imagery epoch independently.
+
+
+##### What does average referencing mean?
+
+EEG electrodes do not measure absolute electrical potential.
+
+They measure potential differences relative to a reference.
+
+A ***common average reference*** is when MNE computes the average across the eligible EEG channels and subtracts that average from each EEG channel:[^mne-reference]
+
+`new channel = original channel - average across EEG channels`
+
+##### How is average referencing a "projection"?
+
+MNE can immediately apply the average reference to the raw data:
+
+`raw.set_eeg_reference("average")`
+
+or store it as a projection:
+
+`raw.set_eeg_reference("average", projection=True)`[^mne-reference]
+
+
+With `projection=True` the average-reference transformation is stored in the MNE object but is not immediately applied to the signal.
+
+A transformation operator (like the MNE reference)removes the channel-average component so that the referenced EEG signal has zero as its mean. 
+
+The standard MNE motor-imagery CSP example uses average reference as a projection.[^mne-csp-example] This is because a projection can adapt to excluded channels.
+
+
+#### 9) Epochs
 
 How to turn EEG into trials
 
-COntinuous recording -> find T1/T2 onset -> Cut fixed time window -> one epoch per motor imagery trial
+Continuous EEG must be divided into task-related trials before trial-based machine learning: 
+
+`continuous EEG`
+
+→ `find T1/T2 onset`
+
+→ `extract a fixed time interval around each onset`
+
+→ `one epoch per task event`
+
+MNE represents epoched EEG with the shape:
+
+`n_epochs × n_channels × n_times`[^mne-epochs]
+
+For example:
+
+`45 × 64 × 801`
+
+would mean:
+
+- 45 epochs
+- 64 channels
+- 801 time samples
+
+At 160 Hz, an epoch from -1 to +4 seconds contains 801 samples because MNE includes the samples corresponding to both the starting and ending times.[^mne-epochs]
+
+#### 10) Baseline Correction
+
+MNE-Epoch baseline correction calculates the mean voltage during a specified baseline period and subtracts this value from the entire epoch, separately for each channel and epoch. THis creates a reference for to spot ERD/ERS.[^mne-epochs]
+
+Please understand that the ERD/ERS instead compares oscillatory power during a task with oscillatory power during a reference period.[^erd][^mne-erds]
+
+MNE's ERDS example instead uses the -1 to 0 second interval as a power reference for ERD/ERS visualization.[^mne-erds]
+
+The choice of ERD/ERS reference period matters because different baselines can alter the apparent magnitude of ERD/ERS.[^erd-baseline]
+
+#### 11) Artifact rejection
+
+Individual Epochs may contain unusually large artifacts or nearly flat signals.
+
+MNE can reject epochs using peak-to-peak amplitude.[^mne-epochs]
+
+If the peak-to-peak amplitude of any relevant channel exceeds a specified `reject` threshold (from a max to min value), MNE can drop the epoch.
+
+MNE also provides a `flat` threshold for detecting signals whose peak-to-peak amplitude is suspiciously small.[^mne-epochs]
+
+This is determined through analyzing the data. 
+
+The basic workflow should therefore be:
+
+#### 12) Quality control
+
+Before running this should all be checked: 
+
+- subject and run identities
+- sampling frequency
+- number of channels
+- channel names
+- recording duration
+- event labels
+- event counts
+- epoch counts
+- class balance
+- epoch dimensions
+- NaN values
+- infinite values
+- flat channels
+- extreme amplitudes
+- unexpected dropped epochs
+- run boundaries
+- train/test leakage
 
 
-EEG does not measure absolute voltage
+#### 13) Summary / Workflow
 
-But compares the electrode - the reference -> Every EEG is dependant on the refernce
+MOTOR IMAGERY
+      ↓
+changes sensorimotor neural activity
+      ↓
+mu/beta rhythmic synchronization changes
+      ↓
+ERD / ERS
+      ↓
+changes 7–30 Hz POWER
+      ↓
+band-pass filter isolates relevant rhythms
+      ↓
+power ≈ variance for zero-mean band-limited signal
+      ↓
+left/right imagery produces different
+spatial variance patterns across electrodes
+      ↓
+CSP finds combinations of electrodes
+that maximize those differences
+      ↓
+CSP log-variance features
+      ↓
+classifier
+      ↓
+left vs right prediction
 
-The CSP example usees projection = True for its refernce
+#### 14) References Week 4
 
+[^physionet]: Schalk, G. (2009). *EEG Motor Movement/Imagery Dataset* (Version 1.0.0). PhysioNet. doi:10.13026/C28G6P.
 
-WHat is baseline correction?
+[^mne-eegbci]: MNE Developers. *mne.datasets.eegbci.load_data — MNE-Python documentation*. Run definitions for the EEGBCI dataset.
 
-Epoch baseline subtracts the mean voltage
+[^shuqfa]: Shuqfa, Z., Lakas, A., & Belkacem, A. N. (2024). Increasing accessibility to a large brain–computer interface dataset: Curation of PhysioNet EEG Motor Movement/Imagery Dataset for decoding and classification. *Data in Brief, 54*, 110181. doi:10.1016/j.dib.2024.110181.
 
-ERD/ERS compares oscillatory power
+[^domain-adaptation]: *Domain-aware domain–class adaptation network for motor execution to motor imagery EEG classification* (2026). Used as a secondary confirmation of the six EEGMMIDB subjects reported as having non-standard recording structures.
 
-We will have baseline corerction set to None at first. 
+[^erd]: Pfurtscheller, G., & Lopes da Silva, F. H. (1999). Event-related EEG/MEG synchronization and desynchronization: Basic principles. *Clinical Neurophysiology, 110*(11), 1842–1857. doi:10.1016/S1388-2457(99)00141-8.
 
-Epochs can have large artifacs or flat channels: 
+[^mcfarland]: McFarland, D. J., Miner, L. A., Vaughan, T. M., & Wolpaw, J. R. (2000). Mu and beta rhythm topographies during motor imagery and actual movements. *Brain Topography, 12*(3), 177–186. doi:10.1023/A:1023437823106.
 
-MNE can calculate Peak to peak amplitude -> meaning epochs get rejected if it exceeds a threshold
+[^ramoser]: Ramoser, H., Müller-Gerking, J., & Pfurtscheller, G. (2000). Optimal spatial filtering of single trial EEG during imagined hand movement. *IEEE Transactions on Rehabilitation Engineering, 8*(4), 441–446. doi:10.1109/86.895946.
 
-We need to find the appropriate threshgold depdning on data
+[^mne-csp]: MNE Developers. *mne.decoding.CSP — MNE-Python documentation*. Documentation of supervised Common Spatial Patterns decomposition.
 
+[^mne-csp-example]: MNE Developers. *Motor imagery decoding from EEG data using the Common Spatial Pattern (CSP) — MNE-Python documentation*. Used for the reference CSP implementation, 7–30 Hz filtering, run-boundary handling, average-reference projection, epoching, and `baseline=None`.
 
-#### Summary from the 8 articles
+[^widmann]: Widmann, A., Schröger, E., & Maess, B. (2015). Digital filter design for electrophysiological data — a practical approach. *Journal of Neuroscience Methods, 250*, 34–46. doi:10.1016/j.jneumeth.2014.08.002.
 
-What do the files and labels mean? 
+[^mne-filter]: MNE Developers. *Background information on filtering — MNE-Python documentation*. Used for FIR-filter design, transition bands, ringing, phase, and filter trade-offs.
 
-RUns 4,8 and 12 -> T1 left imgaery T2 right imagery
+[^mne-concat]: MNE Developers. *mne.concatenate_raws — MNE-Python documentation*. Used for understanding concatenation boundaries and boundary annotations.
 
-Can every recording be trusted?
+[^mne-reference]: MNE Developers. *mne.set_eeg_reference — MNE-Python documentation*. Used for average referencing and `projection=True`.
 
-No -> Run lengths and trial counts
+[^mne-reference-tutorial]: MNE Developers. *Setting the EEG reference — MNE-Python documentation*. Used for understanding the advantages and behavior of average-reference projectors.
 
-What EEG phenomenon reflects motor engagement?
+[^mne-epochs]: MNE Developers. *mne.Epochs / mne.BaseEpochs — MNE-Python documentation*. Used for epoch structure, inclusive time endpoints, baseline correction, peak-to-peak rejection, flat-signal rejection, and projection handling.
 
-Frequency specific ERD/ERS
+[^mne-erds]: MNE Developers. *Compute and visualize ERDS maps — MNE-Python documentation*. Used for ERD/ERS interpretation, time-frequency analysis, and use of a pre-cue power baseline.
 
-Where and at what frequencies?
-
-Central sensorimotor regions -> mu and beta rhythms
-
-How can electrodes become useful features
-
-CSP learns spatial combinatons of electrodes
-
-HOw do we isolate relevant frequencies safely?
-
-CAreful 7-30 Hz band-pass filtering
-
-How do we implement all this?
-
-Load -> Combine recordings -> standarize -> montage -> refernce -> filter -> event -> epochs -> insepct epoch quality -> QC
-
-
-### Week 4 Preprocessing Protocol
-
-#### Research task
-Binary classification of imagined left- versus right-fist movement.
-
-#### Dataset
-PhysioNet EEG Motor Movement/Imagery Dataset.
-
-#### Runs
-Runs 4, 8, and 12: imagined left-versus-right fist movement.
-
-#### Classes
-T1 = imagined left fist  
-T2 = imagined right fist
-
-T0 is retained in the original recording for reference and exploratory analysis but is not used as a classification target.
-
-#### Channels
-All 64 EEG channels are retained initially.
-
-C3, Cz, and C4 remain useful for visualization and physiological sanity checks, but channel selection is not performed at the preprocessing stage.
-
-#### EEG reference
-Common average reference.
-
-#### Frequency filtering
-7–30 Hz band-pass filter.
-
-This range covers the main sensorimotor mu and beta rhythms associated with motor imagery while matching a standard MNE EEGBCI decoding pipeline.
-
-#### Epoch extraction
-Create epochs from:
-
--1.0 s to +4.0 s relative to T1/T2 cue onset.
-
-The pre-cue section is retained for quality control and possible later ERD/ERS analysis.
-
-#### Machine-learning window
-Use:
-
-+1.0 s to +4.0 s
-
-for the first classification experiment.
-
-The first second after the cue is excluded to reduce the possibility of decoding cue-evoked visual responses instead of sustained motor imagery.
-
-#### Baseline correction
-No baseline subtraction is applied to the primary machine-learning input.
-
-For later ERD/ERS visualization, the -1 to 0 s interval may be used as a reference period.
-
-#### Sampling frequency
-Retain the native 160 Hz sampling frequency.
-
-#### Expected machine-learning trial shape
-
-Approximately:
-
-64 channels × 480 time samples
-
-for each 3-second motor-imagery trial.
+[^erd-baseline]: *Impact of the baseline temporal selection on the ERD/ERS analysis for Motor Imagery-based BCI*. Used for the methodological importance of choosing ERD/ERS reference periods carefully.
