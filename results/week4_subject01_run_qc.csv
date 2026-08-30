@@ -1,0 +1,4 @@
+subject,run,n_channels,channels_ok,sfreq_hz,sfreq_ok,n_samples,duration_seconds,t0_count,t1_count,t2_count,labels,labels_ok,basic_qc_pass
+1,4,64,True,160.0,True,20000,124.99375,15,8,7,"[np.str_('T0'), np.str_('T1'), np.str_('T2')]",True,True
+1,8,64,True,160.0,True,20000,124.99375,15,8,7,"[np.str_('T0'), np.str_('T1'), np.str_('T2')]",True,True
+1,12,64,True,160.0,True,20000,124.99375,15,7,8,"[np.str_('T0'), np.str_('T1'), np.str_('T2')]",True,True
