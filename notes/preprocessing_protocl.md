@@ -68,7 +68,7 @@ CSP is designed to learn weighted spatial combinations of multiple electrodes.[^
 
 The MNE CSP example also retains all available EEG channels rather than restricting the classifier to C3, Cz, and C4.[^mne-csp-example]
 
-Restricting the classifier to these electrodes now would constitute an early "feature-selection" decision that is yet demonstrated to be optimal.
+Restricting the classifier to these electrodes now would constitute an early "feature-selection" decision that has not yet been demonstrated to be optimal.
 
 Keep in mind that data-driven channel selection must be fitted using training data only.
 
@@ -141,7 +141,7 @@ relative to T1/T2 onset.
 
 MNE's motor-imagery CSP example uses epochs from -1 to +4 seconds.[^mne-csp-example]
 
-MNE's ERDS example also analyzes motor-imagery activity over approximately this interval, and importantly ***uses the pre-cue period for ERD/ERS reference calculations***.[^mne-erds]
+MNE's ERDS example also analyzes motor-imagery activity over approximately this interval, and importantly **uses the pre-cue period for ERD/ERS reference calculations**.[^mne-erds]
 
 At 160 Hz, MNE includes both time endpoints.
 
@@ -175,7 +175,7 @@ from each stored epoch.
 
 ### Reasoning
 
-The MNE CSP example explicitly delays classification until one second after cue onset to ***reduce classification of cue-evoked responses*** rather than the intended motor-imagery activity.[^mne-csp-example]
+The MNE CSP example explicitly delays classification until one second after cue onset to **reduce classification of cue-evoked responses** rather than the intended motor-imagery activity.[^mne-csp-example]
 
 MNE's example specifically uses 1–2 seconds for its training demonstration.
 
@@ -215,13 +215,10 @@ For later ERD/ERS visualization, the pre-cue period,`-1 to 0 s`, may be used as 
 
 Please do not confuse these two operations.
 
-
 Essentially, 
 Machine-learning epoch `baseline=None` and ERD/ERS reference `compares task-period spectral power with reference-period spectral power` (pre cue period)
 
 Please note that the choice of ERD/ERS reference interval can substantially affect estimated ERD/ERS magnitude.[^erd-baseline]
-
----
 
 ## 10. Sampling Frequency
 
@@ -241,21 +238,21 @@ The Nyquist frequency is therefore:
 
 `160 / 2 = 80 Hz`
 
-A 30 Hz upper passband is well below the 80 Hz Nyquist limit (causing no aliasing).
+A 30 Hz upper passband is well below the 80 Hz Nyquist limit (causing no aliasing) at 160 Hz sampling rate.
 
 There is no need to resample currently.
 
-Keeping the native sampling rate also avoids introducing an unnecessary preprocessing operations.
+Keeping the native sampling rate also avoids introducing an unnecessary preprocessing operation.
 
 ---
 
-## 12. Dataset Quality Control
+## 11. Dataset Quality Control
 
 ### Decision
 
 Perform explicit QC before modeling.
 
-### Rreasoning
+### Reasoning
 
 Shuqfa et al. demonstrated that EEGMMIDB contains recording irregularities and excluded six subjects in their curated version.[^shuqfa]
 
@@ -290,7 +287,7 @@ The six abnormal subjects previously identified should be treated as QC flags an
 
 Note: The final exclusion criteria must be written down before the final model evaluation.
 
-## 13. Artifact Rejection
+## 12. Artifact Rejection
 
 ### Decision
 
@@ -309,7 +306,7 @@ If a threshold is eventually introduced, it should be:
 - applied consistently
 - selected before final model evaluation
 
-## 14. Preservation of Metadata
+## 13. Preservation of Metadata
 
 ### Decision
 
@@ -335,9 +332,7 @@ Run identity could also be useful for:
 - evaluating session/run effects
 - avoiding accidental dependence between training and test data
 
----
-
-## 15. CSP and Train/Test Leakage
+## 14. CSP and Train/Test Leakage
 
 CSP will not be fitted during the basic preprocessing stage.
 
@@ -345,16 +340,14 @@ When CSP is introduced during baseline modeling, it must be placed inside the tr
 
 Because CSP uses class labels, fitting it before splitting would allow information from the held-out data to influence the learned feature representation.
 
----
-
-## 16. Initial Protocol Summary
+## 15. Initial Protocol Summary
 
 The first baseline preprocessing protocol is therefore:
 
 | Component | Decision |
 |---|---|
-| Dataset: PhysioNet EEGMMIDB |
-| Task : imagined left fist vs imagined right fist |
+| Dataset | PhysioNet EEGMMIDB |
+| Task | Imagined left fist vs imagined right fist |
 | Runs | 4, 8, 12 |
 | Classes | T1 vs T2 |
 | Rest | T0 retained but not classified |
@@ -375,7 +368,7 @@ The first baseline preprocessing protocol is therefore:
 
 These decisions should remain fixed for the first baseline experiment.
 
-## 17. Processing Order / Workflow
+## 16. Processing Order / Workflow
 
 The intended Week 4 sequence is:
 

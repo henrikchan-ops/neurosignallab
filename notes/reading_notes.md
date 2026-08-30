@@ -278,7 +278,7 @@ This process is called quality control, or QC.
 
 What biological signal are we trying to detect?
 
-ERD refers to an event-related decrease in oscillatory power within a particular frequency band.[^erd]. When neuroanl populations gets engaged, oscillations become less synchronized when comparing multiple populations.
+ERD refers to an event-related decrease in oscillatory power within a particular frequency band.[^erd]. ERD occurs when activity contributing to an ongoing rhythm becomes less synchronized.
 
 A neuronal population may exhibit a relatively strong ongoing rhythm before a task. When that network becomes engaged, the rhythmic activity can become less synchronized, causing the measured power in that frequency band to decrease.
 
@@ -320,7 +320,7 @@ An ERP, or event-related potential, is a voltage response that occurs at a relat
 
 For example, a visual cue may produce a repeatable voltage deflection (voltage change) after the cue appears. If this response occurs at approximately the same time and phase across trials, averaging the trials preserves it.
 
-ERD/ERS describes changes in ongoing oscillatory power. The underlying oscillations do not need to have the same phase on every trial. What remains consistent is the change in power (amplitude).[^erd]
+ERD/ERS describes changes in ongoing oscillatory power. The underlying oscillations do not need to have the same phase on every trial. What remains consistent is the change in power (amount of activity in certain frequency).[^erd]
 
 Motor-imagery analysis cares about frequency, power, time and spatial location
 
@@ -346,7 +346,7 @@ ERP is a waveform that is consistent phase and latency relative to an event. For
 ##### Why is motor imagery using ERD/ERS instead of ERP?
 The experiment is structured so that the participant get a visual cue before the movement gets imagined at t=0. The model can instead learn left-right visual stimulus instead left-hand vs right-hand imagery.[^mne-csp-example]
 
-Because ERP is voltage and analyzed in amplitude, it doesnt tell us about the brainstate of imagery -> which is a sustained state happening from 1-4s. ERP is instead a response to for instanse sensory response or processing. 
+Because ERP is voltage and analyzed in amplitude, it emphasizes phase-locked responses such as the visual cue. Since the project whats to classify sustained, frequency-specific sensorimotor rhythms, it can be better characterized by ERD/ERS. 
 
 #### 5) Why mu and beta: McFarland et al. 
 
@@ -435,13 +435,17 @@ Instead, filters contain transition regions:
 
 Sharper filters can produce longer temporal ringing.[^widmann][^mne-filter]. Causing frequency domain and time-domain plots to be affected. 
 
-A good filter includes a transition band around the cutoff that slowly phases the signal out. Since you need datapoints around the edge to calculate an output, a sharp cutoff can create edge artifacts that can ring or distort frequency.
+A good filter includes a transition band around the cutoff that slowly phases the signal out. Since you need datapoints around the edge to calculate an output, a sharp cutoff requires longer filters and can increase temporal "ringing".
 
 #### 8) Filtering boundaries
 
-Runs between subjects must be concatenated together in a recording, since filtering requires information from neighbouring samples. 
+Edge artifacts are a separate problem that occurs near the beginning/end of a signal or at discontinuities because the filter lacks normal neighbouring data around those boundaries.
 
-The intended approach is to filter the continuous recording segments while respecting boundaries between runs. The end of one experimental run and the beginning of another are not physiologically continuous.
+Runs 4, 8, and 12 belonging to the same subject may be concatenated for convenient processing, but the boundaries between runs must still be preserved. Different subjects remain separate. 
+
+If runs are concatenated, MNE boundary annotations allow filtering to respect the discontinuities between them.
+
+The intended approach is to filter the continuous recording segments while respecting boundaries between runs. The end of one experimental run and the beginning of another are not continuous.
 
 MNE's `concatenate_raws()` marks recording boundaries with bad boundary annotations.[^mne-concat]
 
@@ -473,7 +477,7 @@ or store it as a projection:
 
 With `projection=True` the average-reference transformation is stored in the MNE object but is not immediately applied to the signal.
 
-A transformation operator (like the MNE reference)removes the channel-average component so that the referenced EEG signal has zero as its mean. 
+A transformation operator (like the MNE reference)removes the channel-average component so that the the mean across the EEG channels is zero at each time point. 
 
 The standard MNE motor-imagery CSP example uses average reference as a projection.[^mne-csp-example] This is because a projection can adapt to excluded channels.
 
@@ -510,9 +514,9 @@ At 160 Hz, an epoch from -1 to +4 seconds contains 801 samples because MNE inclu
 
 #### 10) Baseline Correction
 
-MNE-Epoch baseline correction calculates the mean voltage during a specified baseline period and subtracts this value from the entire epoch, separately for each channel and epoch. THis creates a reference for to spot ERD/ERS.[^mne-epochs]
+MNE epoch baseline correction subtracts the mean voltage during a selected baseline interval from the epoch. Creating a refencer oscillatory power.[^mne-epochs]
 
-Please understand that the ERD/ERS instead compares oscillatory power during a task with oscillatory power during a reference period.[^erd][^mne-erds]
+Please understand that the ERD/ERS compares oscillatory power during a task with oscillatory power during the reference period.[^erd][^mne-erds]
 
 MNE's ERDS example instead uses the -1 to 0 second interval as a power reference for ERD/ERS visualization.[^mne-erds]
 
