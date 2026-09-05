@@ -98,7 +98,93 @@ Finally, I created basic visualizations: a raw EEG preview from central scalp el
 
 The next technical step is to move from continuous raw EEG into epochs. This means cutting the recording into time-locked segments around `T1` and `T2` events so that each segment can become one machine-learning example.
 
-### Week 4
+## Week 4 — Building the Preprocessing Pipeline
+
+This week I built the first complete preprocessing pipeline for the motor-imagery classification problem.
+
+I narrowed the project qeustion to: can EEG distinguish imagined left-fist movement from imagined right-fist movement? I chose runs 4, 8, and 12 from the PhysioNet EEG Motor Movement/Imagery Dataset because they are repeated versions of the same left-versus-right motor-imagery task. T1 represents imagined left-fist movement and T2 represents imagined right-fist movement, while T0 is retained in the raw recording but is not used as a classification class. 
+
+The final preprocessing pipeline now:
+
+- loads runs 4, 8, and 12,
+- standardizes channel names and attaches the EEG montage,
+- keeps all 64 EEG channels,
+- concatenates the three runs while respecting recording boundaries,
+- applies a common-average EEG reference using an MNE projection,
+- band-pass filters the EEG from 7–30 Hz,
+- extracts T1 and T2 motor-imagery events,
+- creates epochs from -1 to +4 seconds,
+- retains +1 to +4 seconds as the machine-learning window,
+- creates the feature array `X`, class labels `y`, and trial metadata.
+
+The full epochs contain 64 channels × 801 samples, while the final machine-learning trials contain 64 channels × 481 samples.
+
+After developing and inspecting the preprocessing notebook, I mimplemented it into `src/neurosignallab/preprocessing.py` as a reusable `preprocess_subject()` function. I then tested the same function across several subjects instead of keeping the preprocessing hard-coded for Subject 1.
+
+
+The biggest change this week was that I started understanding how each signal transformation affected the signal we tried to extract. 
+
+Motor imagery changes ongoing sensorimotor rhythms, particularly activity in the mu and beta frequency ranges. These changes can appear as event-related desynchronization or synchronization: decreases or increases in oscillatory power that vary across frequency, time, and scalp location. This gives a physiological reason for focusing the first analysis on a broad 7–30 Hz frequency range rather than simply choosing a filter because an example used it.
+
+I also learned more clearly why CSP is relevant to the eventual classifier. CSP instead learns weighted combinations of electrodes whose variance differs between the two classes. This is why I decided to retain all 64 EEG channels.
+
+I learned that filtering is not simply “removing unwanted frequencies.” A digital filter introduces transition regions and possible temporal effects such as ringing. I therefore need to respect boundaries between concatenated runs rather than allowing the filter to treat the end of one recording and the beginning of another as physiologically continuous.
+
+I also learned why a -1 to +4 second epoch sampled at 160 Hz contains 801 rather than 800 samples: MNE includes both endpoints. The same reasoning explains why the +1 to +4 second ML window contains 481 samples.
+
+
+Several concepts that initially sounded similar were actually different operations.
+
+The main one was the distinction between an **EEG reference**, a **voltage baseline correction**, and an **ERD/ERS reference period**.
+
+A common-average EEG reference changes what each channel's voltage is measured relative to. MNE can store that transformation as a projection instead of immediately applying it. An epoch baseline correction, by contrast, subtracts a mean voltage from each epoch. ERD/ERS analysis is different: it compares oscillatory power during the task with oscillatory power during a reference time interval. These three ideas all use “reference” or “baseline,” but they solve different problems.
+
+I was also confused about the relationship between ERP and ERD/ERS. I originally thought of both simply as responses to an event. I now understand that an ERP is a relatively time- and phase-locked voltage response, while ERD/ERS describes changes in oscillatory power that do not require the oscillation itself to have the same phase across trials.
+
+Another question was why the classifier should begin at +1 second rather than at cue onset. The first second may contain visual cue-evoked activity, meaning a classifier could partially learn the response to seeing the cue rather than the sustained neural state associated with imagining movement. This is why I decided to retain the complete -1 to +4 second epoch for analysis, but use only +1 to +4 seconds for the first classifier. 
+
+
+I decided on a first preprocessing protocol rather than continue changing parameters before I have a baseline model (see preprocessing_protocol.md).
+
+These decisions are intended to form a reproducible baseline. More complicated choices such as narrower frequency bands, filter-bank CSP, channel selection, subject-specific frequency ranges, or additional artifact rejection should be included as later.
+
+I also decided that CSP will not be fitted during preprocessing. Because CSP uses the class labels, it must later be fitted only on training data inside the machine-learning pipeline. Fitting it on the complete dataset before splitting would introduce information leakage.
+
+
+The most important limitation is that preprocessing does not automatically make the EEG trustworthy.
+
+The dataset itself contains variation between recordings and subjects. This became visible when I validated the reusable preprocessing pipeline across Subjects 1–5. The dimensions were consistent, but Subject 5 contained 21 left and 24 right trials rather than the 23/22 split seen in Subjects 1–4. Checking the original annotations showed that this difference already existed in the raw recording.
+
+More generally, previous work on EEGMMIDB has identified subjects with non-standard recording structures. Quality control therefore needs to remain part of the analysis. 
+
+I also do not yet have a justified artifact-rejection threshold. Peak-to-peak amplitude can be used to identify unusually large or flat epochs. For now, I inspect the data and postpone automatic artifact rejection until I have clear criterias. 
+
+---
+
+
+This week created the bridge between raw EEG recordings and machine learning.
+
+Before building classifiers, I need to know that every model receives data that have been processed consistently and that the preprocessing decisions have physiological and methodological reasons behind them. Otherwise, I would not know whether the model had learned motor imagery, visual cue responses, preprocessing artifacts, subject-specific information, or some alternative property of the dataset.
+
+The goal is to build a reproducible brain-signal decoding pipeline and understand where its conclusions are reliable and where they are limited. Week 4 established the preprocessing foundation required for that.
+
+Model performance is only one part of the problem. Data quality, preprocessing choices, metadata preservation, leakage prevention, and physiological interpretation determine whether performance actually means anything.
+
+---
+
+### **What is the next step?**
+
+The next step is to build the first classical machine-learning baseline.
+
+I will begin with CSP as the spatial feature-extraction method and a simple classifier such as LDA. CSP must be fitted only using the training data, so the evaluation pipeline must be designed before looking at model performance.
+
+This first model´s purpose is to establish an interpretable baseline against which later can be compared.
+
+The progression is therefore:
+
+`validated preprocessing → CSP features → classical classifier → honest evaluation → stronger models`
+
+### Week 5
 
 **What did I build this week?**
 
