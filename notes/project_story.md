@@ -84,8 +84,10 @@ The next step is to load a real EDF file from the PhysioNet dataset, inspect the
 
 ## Week 3 — First EEG Loading and Visualization
 
+**What did I build this week?**
 This week, I moved from environment setup into working with real EEG data. I loaded the first PhysioNet EEG Motor Movement/Imagery EDF file, inspected the MNE `Raw` object, checked the sampling frequency, channel count, recording length, annotations, and event labels.
 
+**What did I learn technically?**
 I learned the specific documentation style of the dataset. Before training any classifier, I had to understand how the recording is structured: what the channels are called, where the channels are positioned on the scalp, the internal structure of the raw data, how the annotations are stored, how task labels are converted into events, and whether event timing is preserved correctly.
 
 Most of this week was understanding and figuring out how the EDF was structured internally by sourcing through the different attributes, arrays and metadata within the structure. For instance, figuring out what the data within the event array represented, and how to label it cleanly. The same adaptation was made to MNE´s data loading, specifically storing data in volts. 
@@ -96,9 +98,12 @@ Later, I verified that the event times matched the annotation onsets and created
 
 Finally, I created basic visualizations: a raw EEG preview from central scalp electrodes and an event timeline across the recording. These plots are visual checks showing that the signal can be loaded, inspected, visualized, and connected to task labels.
 
+**What is the next step?**
 The next technical step is to move from continuous raw EEG into epochs. This means cutting the recording into time-locked segments around `T1` and `T2` events so that each segment can become one machine-learning example.
 
 ## Week 4 — Building the Preprocessing Pipeline
+
+**What did I build this week?**
 
 This week I built the first complete preprocessing pipeline for the motor-imagery classification problem.
 
@@ -121,7 +126,7 @@ The full epochs contain 64 channels × 801 samples, while the final machine-lear
 
 After developing and inspecting the preprocessing notebook, I mimplemented it into `src/neurosignallab/preprocessing.py` as a reusable `preprocess_subject()` function. I then tested the same function across several subjects instead of keeping the preprocessing hard-coded for Subject 1.
 
-
+**What did I learn technically?**
 The biggest change this week was that I started understanding how each signal transformation affected the signal we tried to extract. 
 
 Motor imagery changes ongoing sensorimotor rhythms, particularly activity in the mu and beta frequency ranges. These changes can appear as event-related desynchronization or synchronization: decreases or increases in oscillatory power that vary across frequency, time, and scalp location. This gives a physiological reason for focusing the first analysis on a broad 7–30 Hz frequency range rather than simply choosing a filter because an example used it.
@@ -132,7 +137,7 @@ I learned that filtering is not simply “removing unwanted frequencies.” A di
 
 I also learned why a -1 to +4 second epoch sampled at 160 Hz contains 801 rather than 800 samples: MNE includes both endpoints. The same reasoning explains why the +1 to +4 second ML window contains 481 samples.
 
-
+**What confused me?**
 Several concepts that initially sounded similar were actually different operations.
 
 The main one was the distinction between an **EEG reference**, a **voltage baseline correction**, and an **ERD/ERS reference period**.
@@ -143,14 +148,14 @@ I was also confused about the relationship between ERP and ERD/ERS. I originally
 
 Another question was why the classifier should begin at +1 second rather than at cue onset. The first second may contain visual cue-evoked activity, meaning a classifier could partially learn the response to seeing the cue rather than the sustained neural state associated with imagining movement. This is why I decided to retain the complete -1 to +4 second epoch for analysis, but use only +1 to +4 seconds for the first classifier. 
 
-
+**What decision did I make?**
 I decided on a first preprocessing protocol rather than continue changing parameters before I have a baseline model (see preprocessing_protocol.md).
 
 These decisions are intended to form a reproducible baseline. More complicated choices such as narrower frequency bands, filter-bank CSP, channel selection, subject-specific frequency ranges, or additional artifact rejection should be included as later.
 
 I also decided that CSP will not be fitted during preprocessing. Because CSP uses the class labels, it must later be fitted only on training data inside the machine-learning pipeline. Fitting it on the complete dataset before splitting would introduce information leakage.
 
-
+**What limitation did I notice?**
 The most important limitation is that preprocessing does not automatically make the EEG trustworthy.
 
 The dataset itself contains variation between recordings and subjects. This became visible when I validated the reusable preprocessing pipeline across Subjects 1–5. The dimensions were consistent, but Subject 5 contained 21 left and 24 right trials rather than the 23/22 split seen in Subjects 1–4. Checking the original annotations showed that this difference already existed in the raw recording.
@@ -161,7 +166,7 @@ I also do not yet have a justified artifact-rejection threshold. Peak-to-peak am
 
 ---
 
-
+**How does this connect to my larger goal?**
 This week created the bridge between raw EEG recordings and machine learning.
 
 Before building classifiers, I need to know that every model receives data that have been processed consistently and that the preprocessing decisions have physiological and methodological reasons behind them. Otherwise, I would not know whether the model had learned motor imagery, visual cue responses, preprocessing artifacts, subject-specific information, or some alternative property of the dataset.
@@ -184,7 +189,198 @@ The progression is therefore:
 
 `validated preprocessing → CSP features → classical classifier → honest evaluation → stronger models`
 
-### Week 5
+## Week 5 — Building the First Classical EEG Decoding Baseline
+
+**What did I build this week?**
+This week I built the first complete machine-learning baseline for NeuroSignalLab.
+
+I used Common Spatial Patterns (CSP) for supervised spatial feature extraction and Linear Discriminant Analysis (LDA) for classification. The model was evaluated using leave-one-run-out cross-validation.
+
+For each subject, the model was trained on two of runs 4, 8, and 12 and evaluated on the remaining run. CSP and LDA were both fitted separately inside every training fold so that the held-out run could not influence feature extraction or classification.
+
+I first tested the pipeline on Subject 1, then Subjects 1–5, then Subjects 1–20, and finally the complete 109-subject EEGMMIDB cohort.
+
+The final experiment contained 327 evaluation folds:
+
+`109 subjects × 3 held-out runs = 327 folds`
+
+The fold-level and subject-level results were stored separately so that both run-level variability and overall subject performance could be examined.
+
+
+**What did I learn technically?**
+The main lesson this week was that building a classifier is not only about choosing an algorithm. The evaluation methodology determines what the resulting accuracy actually means.
+
+I learned the difference between training data and held-out data, how cross-validation repeatedly creates new train/test splits, and why EEG data require special attention to grouping.
+
+Trials were grouped by recording run. This allowed the model to be evaluated on an entire run that did not participate in training.
+
+I also learned why CSP must remain inside the machine-learning pipeline. CSP is supervised because it uses both EEG data and class labels to learn spatial filters. If we fitted CSP before cross-validation would therefore allow information from the test data to influence the learned representation and create data leakage.
+
+Technically, I learned the complete transformation:
+
+`64-channel EEG`
+→ `CSP spatial filters`
+→ `CSP components`
+→ `component average power`
+→ `log-power CSP features`
+→ `LDA`
+→ `left/right prediction`
+
+I also learned the distinction between components and features. A CSP component is a spatially filtered EEG time series, while a CSP feature is a numerical summary of that component, usually its log average power.
+
+Another important connection was between EEG power and variance. Variance describes how strongly a signal fluctuates around its mean. For an approximately zero-centered band-limited signal, variance and average power are closely related. This explains why CSP can use variance differences to detect spatial differences in motor-imagery.
+
+**What confused me?**
+One difficulty was understanding what exactly CSP was producing.
+
+Initially, it was easy to mix together electrodes, spatial filters, components, and features. I eventually understood that CSP does not simply choose the best electrodes. It learns weighted combinations of all electrodes. Applying one of these spatial filters creates a new time series called a CSP component, and the power of that component is then summarized into a CSP feature.
+
+I also needed to distinguish model parameters from hyperparameters.
+
+Parameters are learned from the training data. Examples include CSP spatial-filter weights and the means, covariance structure, and decision boundary learned by LDA.
+
+Hyperparameters are choices about how the learning procedure operates. For example, `n_components=4` determines how many CSP components are retained. It is chosen before fitting rather than learned directly by CSP.
+
+The evaluation code was another source of confusion. In particular, I had to understand that `LeaveOneGroupOut` returns indices identifying which trials belong to the training and test sets rather than returning the EEG data themselves.
+
+I was also confused by how LDA actually works.
+
+At first, I understood LDA mainly as “a classifier that draws a straight line between two classes.” That is directionally correct, but incomplete. I did not initially understand what the line was based on.
+
+LDA assumes that the CSP features for each class form roughly bell-shaped clusters in feature space.
+
+For example, after CSP, each trial may be represented by four features. Left-imagery trials form one cluster of points, and right-imagery trials form another.
+
+LDA then models:
+
+- the center of the left-imagery cluster,
+- the center of the right-imagery cluster,
+- and how the features spread and vary together.
+
+The center of each cluster is its **mean**.
+
+The way the features spread and vary together is described by the **covariance matrix**.
+
+The key LDA assumption is that the two classes can have different centers, but approximately the same shape and spread.
+
+In simpler terms:
+
+`different means`
+→ the left and right clusters are centered in different places
+
+`shared covariance matrix`
+→ the two clusters are assumed to have roughly the same shape, spread, and orientation
+
+Because LDA assumes this shared covariance structure, the resulting boundary between the two classes is linear.
+
+I had also initially mixed up variance and covariance.
+
+Variance describes how much one feature varies.
+
+Covariance describes how two features vary together.
+
+For example, if CSP feature 1 tends to increase when CSP feature 2 also increases, they have positive covariance.
+
+The covariance matrix contains the variances of the individual features and the covariances between them.
+
+So LDA is not simply drawing an arbitrary straight line. It learns where the two class clusters are centered and how the feature space is distributed, then uses that information to construct a linear decision boundary.
+
+In this project:
+
+`EEG`
+→ `CSP`
+→ `four log-power features`
+→ `LDA models the left/right feature clusters`
+→ `linear decision boundary`
+→ `left/right prediction`
+
+**What decision did I make?**
+This week I decided to establish a fixed classical baseline before attempting to optimize the model.
+
+The baseline uses:
+
+- the Week 4 preprocessing protocol,
+- 7–30 Hz EEG,
+- the +1 to +4 second machine-learning window,
+- all 64 channels,
+- four CSP components,
+- LDA,
+- leave-one-run-out cross-validation,
+- balanced accuracy as the primary metric.
+
+These settings were kept unchanged across all 109 subjects.
+
+I deliberately did not try several CSP component counts or repeatedly modify the frequency band after observing performance. Doing so would turn the baseline experiment into model optimization and could introduce selection bias.
+
+---
+
+### **What limitation did I notice?**
+
+The major limitation was that decoding performance varied dramatically between subjects.
+
+Across all 109 subjects, mean balanced accuracy was approximately 0.597 and median balanced accuracy was approximately 0.568, but individual subject averages ranged from approximately 0.351 to 0.979.
+
+This means that the cohort average hides substantial heterogeneity.
+
+The three held-out runs had similar cohort-average balanced accuracies:
+
+- Run 4: approximately 0.589
+- Run 8: approximately 0.595
+- Run 12: approximately 0.608
+
+There was therefore no obvious large systematic difference between runs, while differences between subjects were much larger.
+
+However, I cannot yet conclude that every subject above 0.50 shows statistically meaningful decoding. Individual folds contain relatively few trials, and I have not yet performed statistical significance or permutation testing.
+
+Most importantly, the experiment remains within-subject. Every subject's model was trained using EEG from that same person. The results therefore say nothing yet about whether a model can generalize to an entirely unseen individual.
+
+---
+
+### **How does this connect to my larger goal?**
+
+This week moved NeuroSignalLab from preprocessing into actual brain-signal decoding.
+
+More importantly, it showed why evaluation design is as important as model architecture.
+
+A model score only becomes meaningful when I can explain exactly what information the model was allowed to learn from and exactly what information remained unseen.
+
+The experiment also revealed an important challenge in EEG machine learning: the same method can work extremely well for some individuals and poorly for others.
+
+This begins to shift the project from simply asking:
+
+> Can I classify motor imagery?
+
+toward the more interesting question:
+
+> How reliable and generalizable are EEG decoding systems across recordings and across people?
+
+That question is directly relevant to whether a neurotechnology model can move beyond a carefully calibrated individual experiment and become useful across a broader population.
+
+---
+
+### **What is the next step?**
+
+The next step is to test cross-subject generalization.
+
+The current baseline asks whether a model can generalize from two runs to an unseen run from the same person.
+
+The next experiment will instead ask:
+
+> Can a model trained using EEG from some subjects classify motor imagery from a completely unseen subject?
+
+This changes the evaluation unit from:
+
+`unseen run`
+
+to:
+
+`unseen person`
+
+and will test whether the spatial motor-imagery patterns learned by CSP + LDA transfer across individuals.
+
+After establishing that baseline, later experiments can investigate controlled hyperparameter optimization, statistical significance, alternative classical methods, and eventually deep-learning approaches.
+
+### Week 6
 
 **What did I build this week?**
 

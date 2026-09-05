@@ -622,3 +622,393 @@ left vs right prediction
 [^mne-erds]: MNE Developers. *Compute and visualize ERDS maps — MNE-Python documentation*. Used for ERD/ERS interpretation, time-frequency analysis, and use of a pre-cue power baseline.
 
 [^erd-baseline]: *Impact of the baseline temporal selection on the ERD/ERS analysis for Motor Imagery-based BCI*. Used for the methodological importance of choosing ERD/ERS reference periods carefully.
+
+## Week 5 — Evaluation Methodology and CSP + LDA
+
+### 1) What is the goal of model evaluation?
+
+The purpose of evaluation is to estimate how well a trained model performs on observations that did not participate in fitting/training the model.
+
+Testing a model on the same data used for training does not measure generalization, rather it teaches memorization. A model learn patterns specific to the training data and perform poorly on unseen data.[^sklearn-cv]
+
+The basic structure is:
+
+`training data → fit model → unseen data → evaluate`
+
+#### Testing structure: Cross-validation
+
+Cross-validation repeatedly divides the available observations into folds. A new model is trained for each fold to fit its own separate CSP and LDA. The fold is split into training data, and held-out data used to evaluate the model.[^sklearn-cv]
+
+#### Three types of data
+Training data -> allows the CSP to learn spatial filters and Linear discriminant analysis to classify boundaries
+
+Validation data -> Data used to compare model choices, like frequency range, differnet CSP components and filters. 
+
+Test data -> Data that remains untouched until all methodological decisions are finished
+
+### 2) Within-subject generalization
+
+EEG observations can have a grouped structure.
+
+For example, several trials may come from the same experimental run or the same subject. Observations from the same group may share recording-specific characteristics that cannot always be treated as independent.[^sklearn-cv]
+
+For the initial within-subject experiment, the important grouping variable is runs.
+
+Subject 1 contains motor-imagery trials from:
+
+- Run 4
+- Run 8
+- Run 12
+
+The initial evaluation therefore uses leave-one-run-out cross-validation:
+
+`train 8 + 12 → test 4`
+
+`train 4 + 12 → test 8`
+
+`train 4 + 8 → test 12`
+
+Scikit-learn's grouped cross-validation methods are designed to ensure that observations in a held-out group do not also occur in the training set, and vice versa.[^sklearn-cv]
+
+This tests:
+
+> Can a model trained on two runs from one subject generalize to an unseen run from the same subject?
+
+This is **within-subject generalization**.
+
+It does not yet answer whether the model generalizes to an unseen person. That is subject-wise evaluation.
+
+### 3) What is data leakage?
+
+Data leakage occurs when information that should belong only to the held-out data affects model fitting.
+
+This produces an overly optimistic estimate of generalization performance.[^sklearn-leakage]
+
+A general rule is:
+
+Anything that learns something from the dataset must only learn from the training data.
+
+The test data may be **transformed** using parameters learned from the training data, but they must not participate in fitting those parameters.[^sklearn-leakage]
+
+
+#### Why CSP creates a leakage risk
+
+Common Spatial Patterns (CSP) is a **supervised spatial-filtering method**, meaning it can see the class labels while learning.
+
+MNE's implementation learns the CSP decomposition from:
+
+`X = EEG epochs`
+
+and
+
+`y = class labels`.[^mne-csp]
+
+Therefore fitting CSP on a complete dataset would be incorrect:
+
+The CSP filters would already contain information from the future held-out trials / test data.
+
+Instead, splitting into train/test folds and fit CSP using only traning X and traning y, could create a fitted classifier that can predict held out-trials:
+
+This process must occur inside every cross-validation fold.
+
+### 4) Why use a Pipeline?
+
+A scikit-learn `Pipeline` chains transformations and a classifiers into one estimator.[^sklearn-pipeline]
+
+In essence, it creates a procedure for which order classifier and transform should be used. 
+
+During cross-validation, the complete pipeline is fitted separately for each training fold.
+
+How it looks like in code:
+
+#### Training fold
+
+`training EEG`
+
+→ `CSP.fit()`
+
+→ `CSP.transform()`
+
+→ `LDA.fit()`
+
+#### Test fold
+
+`unseen EEG`
+
+→ `already-fitted CSP.transform()`
+
+→ `already-fitted LDA.predict()`
+
+This reduces the risk of accidentally fitting a transformation using information from the test fold.[^sklearn-leakage][^sklearn-pipeline]
+
+
+### 5) What is Common Spatial Patterns?
+
+CSP is a supervised spatial-filtering method commonly used for discriminating between two EEG conditions.[^ramoser][^mne-csp]
+
+Our input has the form:
+
+`n_epochs × n_channels × n_times`
+
+For the current project:
+
+`trials × 64 channels × 481 samples`
+
+CSP learns weighted combinations of electrodes called a spatial filter, which is then used to create a smaller set of virtual CSP components. CSP components are spatial patterns across different channels, that can be fitted into CSP features using log average power. This can later be evaluated.
+
+CSP seeks spatial filters whose signal variance differs strongly between the two classes. 
+
+CSP searches for: large variance for class A and small variance for class B, and directions where the opposite relationship occurs.
+
+#### What are different CSP elements?
+
+CSP component
+= new spatially filtered EEG time series
+
+CSP feature
+= numerical summary of that component,
+  usually the log average power
+
+#### What is variance?
+
+How strongly does a signal fluctuate around its average value. The further it fluctuates, the higher the variance. 
+
+### 6) Why does variance contain useful motor-imagery information?
+
+Motor imagery is associated with changes in ongoing sensorimotor oscillations, particularly event-related desynchronization and synchronization in sensorimotor rhythms.[^erd]
+
+ERD/ERS represents changes in oscillatory power.[^erd]
+
+For a band-limited EEG signal, power is closely related to signal variance. 
+
+Average power is the mean squared signal amplitude, while variance is the mean squared distance from the signal mean. If the signal mean is approximately zero, as its often after band-pass filtering; variance and average power are approximately equal.
+
+This creates the chain:
+
+`motor imagery`
+
+→ `changes in sensorimotor oscillations`
+
+→ `changes in mu/beta power`
+
+→ `changes in spatial variance`
+
+→ `CSP detects discriminative variance patterns`
+
+---
+
+### 7) What does CSP produce?
+
+CSP transforms multichannel EEG into a smaller number of components using a weighted filter (spatial filter).
+
+This is called a CSP component -> it represents diffeent spatial patterns across multiple channels.
+
+The power values calculated from each component is the CSP feature. 
+
+For example:
+
+ONE EEG TRIAL
+
+`64 channels × 481 samples`
+     ↓
+CSP spatial filter
+
+`4 components × 481 samples`
+     ↓
+calculate power of each component
+
+4 power values
+     ↓
+log transform
+
+4 CSP features
+
+
+MMNE computes the average power of each CSP component. With `transform_into="average_power"` and `log=None` or `log=True`. These power values are log-transformed to form the CSP features.[^mne-csp]
+
+For the initial baseline, we use:
+
+`n_components = 4`
+
+and keep this choice fixed before examining model performance.
+
+MNE notes that the number of CSP components is a parameter that should ultimately be selected through cross-validation.[^mne-csp]
+
+The four CSP components are summarized into four log-power CSP features, and those four features are passed to LDA.
+
+#### Why use log-variance
+
+EEG power and variance tend to be skewed. For tansforming into a linear classifier, log-variance makes the features more suitable. 
+
+Small differences among low values remain visible, while large values become less extreme
+
+### 8) What is Linear Discriminant Analysis?
+
+Linear Discriminant Analysis (LDA) is a classical linear classifier. Meaning it creates a linear boundary separating the two calsses.
+
+In this project:
+
+CSP = Turn EEG into discriminative features (like coordinates, vectors or datapoints)
+
+LDA = Find a linear rule that separates those two feature vectors between left- and right-imagery trials.
+
+LDA models each class using a multivariate Gaussian distribution while assuming that the classes share the same covariance matrix.[^sklearn-lda]
+
+Multivariate gaussian distribution = cluster of feature points with a center and spread
+
+Covariance matrix = How spread out the features are and how they vary together
+
+To simplify it: LDA assumes each class forms a roughly bell-shaped cluster of points (the gaussian distrubution), and that the two clusters have about the same shape and spread (same covariance matrix), but are centered in different places (with different means).
+
+This shared-covariance assumption produces a **linear decision boundary**.
+
+LDA is useful as the first baseline because it is simple and computationally efficient. CSP followed by a linear discriminant classifier is a well-established motor-imagery EEG approach.[^ramoser][^mne-example]
+
+### 9) What should we measure?
+
+#### Accuracy
+
+Accuracy is:
+
+`number of correct predictions / total predictions`
+
+Accuracy is easy to interpret, but it can become misleading if one class is substantially more common than another.
+
+#### Balanced accuracy
+
+Balanced accuracy is defined as the average recall obtained for each class.[^sklearn-balanced]
+
+Recall for a class is the amount of trials from that true class that the model correctly identifies.
+
+For two classes:
+
+`balanced accuracy = (recall_left + recall_right) / 2`
+
+This means that performance on the left and right classes contributes equally even when their numbers differ.
+
+Balanced accuracy will be the primary metric for the first baseline.
+
+Ordinary accuracy will also be reported.
+
+Performance near 0.5 represents approximately chance-level discrimination when the two classes are balanced.
+
+---
+
+### 10) Report fold-level performance
+
+Cross-validation should not produce only one final number.
+
+For example:
+
+`Run 4 held out → balanced accuracy = ...`
+
+`Run 8 held out → balanced accuracy = ...`
+
+`Run 12 held out → balanced accuracy = ...`
+
+Then calculate:
+
+`mean balanced accuracy`
+
+and report the individual fold values as well.
+
+Large differences between runs may reveal instability. Therefore we calculate different values. 
+
+### 11) Hyperparameter selection can cause optimistic results
+
+A parameter is values the algorithm learns from
+
+A hyperparameter are decision about how the learning algorithm should operate. 
+
+The CSP algorithm learns the components, But we chose how many components before fitting.
+
+Suppose several CSP settings are tested:
+
+`2 components`
+
+`4 components`
+
+`6 components`
+
+`8 components`
+
+If the setting with the highest cross-validation score is selected, the validation results have now influenced the model choice.
+
+The socres are no longer unbiased estimates of generalization performance.
+
+Remember we want to choose hyperparameters with training/validation data, not the final test data.
+
+For the first baseline, we avoid this problem by defining`CSP n_components = 4` before looking at the classification results.
+
+Later, model selection should use **nested cross-validation**:
+
+`inner cross-validation → which hyperparameters?`
+
+`outer cross-validation → how well does this selection generalize?`
+
+The first Week 5 baseline does not require nested CV yet. We wnat to create a starting point first. 
+
+---
+
+### 12) Week 5 baseline protocol
+
+#### Model
+
+`preprocessed EEG`
+
+→ `CSP (4 components)`
+
+→ `log-power features`
+
+→ `LDA`
+
+→ `left/right prediction`
+
+#### Evaluation
+
+Leave one run out at a time:
+
+`train runs 8 + 12 → test run 4`
+
+`train runs 4 + 12 → test run 8`
+
+`train runs 4 + 8 → test run 12`
+
+#### Primary metric
+
+`balanced accuracy`
+
+#### Secondary metric
+
+`accuracy`
+
+#### Leakage rule
+
+CSP and LDA must both be fitted **inside each training fold**.
+
+### Initial scientific question
+
+> Can a simple and interpretable CSP + LDA model distinguish imagined left- from right-fist movement in an unseen recording run from the same subject?
+
+This is a within-subject baseline. Not cross-subject generalization
+
+
+## Week 5 References
+
+[^ramoser]: Ramoser, H., Müller-Gerking, J., & Pfurtscheller, G. (2000). Optimal spatial filtering of single trial EEG during imagined hand movement. *IEEE Transactions on Rehabilitation Engineering, 8*(4), 441–446. https://doi.org/10.1109/86.895946.
+
+[^erd]: Pfurtscheller, G., & Lopes da Silva, F. H. (1999). Event-related EEG/MEG synchronization and desynchronization: Basic principles. *Clinical Neurophysiology, 110*(11), 1842–1857. https://doi.org/10.1016/S1388-2457(99)00141-8.
+
+[^mne-csp]: MNE Developers. *mne.decoding.CSP — MNE-Python documentation*. MNE-Python. Used for CSP input structure, supervised fitting, spatial-filter transformation, average-power features, log transformation, and component selection.
+
+[^mne-example]: MNE Developers. *Motor imagery decoding from EEG data using the Common Spatial Pattern (CSP) — MNE-Python example*. Used as a reference implementation for motor-imagery decoding with CSP and a linear discriminant classifier.
+
+[^sklearn-cv]: scikit-learn Developers. *Cross-validation: evaluating estimator performance — scikit-learn User Guide*. Used for train/test separation, k-fold cross-validation, grouped cross-validation, and leave-one-group-out methodology.
+
+[^sklearn-leakage]: scikit-learn Developers. *Common pitfalls and recommended practices: Data leakage — scikit-learn User Guide*. Used for the rule that fitted transformations must learn parameters only from training data and for preventing leakage during preprocessing.
+
+[^sklearn-pipeline]: scikit-learn Developers. *sklearn.pipeline.Pipeline — scikit-learn documentation*. Used for chaining CSP and LDA so that trainable transformations and the final estimator are fitted together within cross-validation.
+
+[^sklearn-lda]: scikit-learn Developers. *Linear and Quadratic Discriminant Analysis — scikit-learn User Guide*. Used for the probabilistic formulation of LDA, the shared-covariance assumption, and the resulting linear decision surface.
+
+[^sklearn-balanced]: scikit-learn Developers. *sklearn.metrics.balanced_accuracy_score — scikit-learn documentation*. Used for the definition of balanced accuracy as the average recall across classes.
