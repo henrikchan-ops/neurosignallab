@@ -1012,3 +1012,460 @@ This is a within-subject baseline. Not cross-subject generalization
 [^sklearn-lda]: scikit-learn Developers. *Linear and Quadratic Discriminant Analysis — scikit-learn User Guide*. Used for the probabilistic formulation of LDA, the shared-covariance assumption, and the resulting linear decision surface.
 
 [^sklearn-balanced]: scikit-learn Developers. *sklearn.metrics.balanced_accuracy_score — scikit-learn documentation*. Used for the definition of balanced accuracy as the average recall across classes.
+
+## Week 6 — Cross-Subject Generalization
+
+### 1) Goal
+
+The goal of Week 6 is to test whether the CSP + LDA motor-imagery
+baseline can generalize to a completely unseen subject.
+
+Week 5 tested within-subject, across-run generalization.
+
+Week 6 instead tests cross-subject generalization:
+
+training:
+Subjects A, B, C, ...
+
+testing:
+Subject Z — completely unseen during fitting
+
+The preprocessing and model are kept fixed so that the main change
+between the experiments is the level of generalization being tested.
+
+The fixed baseline remains:
+
+- unilateral left- vs right-fist motor imagery
+- runs 4, 8 and 12
+- all 64 EEG channels
+- common-average reference
+- 7–30 Hz band-pass filtering
+- +1 to +4 s machine-learning window
+- four CSP components
+- LDA classifier
+- balanced accuracy as the primary evaluation metric
+
+The EEG Motor Movement/Imagery Dataset contains the same motor-imagery
+protocol across 109 subjects, with 64-channel EEG sampled at 160 Hz.
+Runs 4, 8 and 12 correspond to imagined unilateral left/right fist
+movement. [1]
+
+
+### 2) Levels of generalization
+
+A model can be evaluated at different levels.
+
+Easy generalization -> A random trial split tests whether the model can classify new trials
+when the same subjects may already be represented in the training set.
+
+Harder generalization -> A leave-one-run-out split tests whether the model can generalize to a
+new recording run from the same subject.
+
+Even harder generalization -> A leave-one-subject-out split tests whether the model can generalize
+to a person whose data were completely absent during model fitting.
+
+Samples from the same subject share person-specific physiology, electrode topology and other charactiristics. We want to answer if the model can recognize left-right imagery based on generalization of data, and not the subject-specific quirks.
+
+Grouped
+cross-validation keeps samples belonging to the same individual
+together in either training or test folds. [2]
+
+### 3) Leave-One-Subject-Out Cross-Validation
+
+Leave-One-Subject-Out (LOSO) cross-validation can be implemented using
+LeaveOneGroupOut, with subject identity used as the group variable.
+
+For 109 subjects:
+
+Fold 1:
+train = Subjects 2–109
+test = Subject 1
+
+Fold 2:
+train = Subjects 1, 3–109
+test = Subject 2
+
+...
+
+Fold 109:
+train = Subjects 1–108
+test = Subject 109
+
+Every subject therefore acts as the test subject once.
+
+The important change from the Week 5 cross-validation algorithm
+is the groups variable.
+
+LeaveOneGroupOut guarantees that all observations belonging to the
+held-out group are excluded from its paired training set, as similar to Week 5. [2]
+
+
+### 4) Subject-dependent vs subject-independent decoding
+
+Subject-dependent decoding means that EEG from the target subject
+participates in model fitting.
+
+The Week 5 experiment was subject-dependent because the model was still trained using other runs from the
+same individual.
+
+Subject-independent decoding means that the target subject does not
+participate in fitting.
+
+The Week 6 baseline is subject-independent because the held-out
+subject contributes no EEG to CSP or LDA fitting.
+
+This makes it harder for CSP, as spatial patterns could vary from subject to subject. It needs to find patterns consistent across people, which is fundamentaly harder.
+
+
+### 5) Inter-subject and intra-subject variability
+
+Intra-subject variability refers to variatn in EEG within one person,
+for example across runs, sessions or days.
+
+Inter-subject variability refers to differences in EEG between
+different people.
+
+Sensorimotor EEG can vary substantially both within and between
+subjects. These differences reduce the transferability of models
+trained on one set of EEG recordings to different subjects or
+sessions. [3]
+
+Potential contributors to inter-subject variability include:
+
+- differences in neurophysiology
+- differences in sensorimotor rhythm strength and timing
+- anatomical differences
+- different mappings between neural sources and scalp electrodes
+- differences in motor-imagery cognitive strategy
+- attention and psychological state
+- recording-related variability
+
+Therefore, the same experimental class label does not imply that every
+subject produces an identical EEG feature distribution.
+
+
+### 6) Domain and domain shift
+
+A domain is a distribution of data. For instance between CSP features.
+
+For the cross-subject experiment, each participant creates its own separate domain.
+
+For one LOSO fold:
+
+source domains = training subjects
+target domain = held-out subject
+
+The prediction task remains the same:
+
+left vs right motor imagery
+
+but the EEG distribution may change between source and target
+subjects.
+
+This is called domain shift.
+
+The literature describes inter-subject and inter-session
+variability as causes changing EEG feature distributions that can
+reduce model generalization. [3]
+
+#### Definitions of domains
+
+**Domain generalizaton** - subject-independent cross-subject generalization: learning using source-domain data and generalize to unseen domain without the target domain included in model fitting[5]
+
+**Domain adaptation** - When the target domain is included in the traning fold
+
+**Subject-specific calibration** - When target domain is included in the training fold, but the trials are not included in the test-fold
+. Subject-specific BCI systems often require labelled EEG
+from a new user before the model can work well. Since we are training the model to be subject-independent, we want to remove the need for calibration[3,6]
+
+**Transfer learning** - using knowledge learned in source domain to improve learning in different target settings. This knowledge can be transfered in multiple stages of the pipeline, and reduces the need for subject-specific calibration[6]
+
+Potential future methods include:
+
+- feature or covariance alignment
+- regularized/transfer CSP
+- Riemannian methods
+- subject-adaptive models
+- deep domain adaptation
+
+
+#### Why are we not solving domain shift yet?
+
+Because we want to create a benchmark and baseline, that later can be improved with different alignment methods and transfer-learning. 
+
+### 7) Covariate shift
+
+Covariate shift is a more specific type of distribution shift.
+
+Covariate shift means the distribution of the inputs changes between training and testing, while the underlying relationship between inputs and labels is assumed to stay the same.
+
+Tne inputs from the train and test set could be different:
+
+P_train(X) != P_test(X)
+
+while the relationship between input and target is assumed to remain
+approximately stable:
+
+P_train(y | X) ~= P_test(y | X)
+
+However, that assumption is not always the case. The target subject could have a distribution wildly different to the source domains. But the same way of classifying stays the same. 
+
+The meaning of inputs stays the same, but certain datasets can expose the classification to different input.
+
+In EEG, inter-subject variability is often discussed using
+covariate-shift terminology. [3]
+
+However, not every subject difference ends up retaining the relationship.
+
+Therefore, "domain shift" is a safer general term for the Week 6
+problem.
+
+#### What happens to CSP across subjects?
+
+Cross-subject CSP asks:
+
+Which weighted combinations of electrodes distinguish left from right
+imagery across the training population and also transfer to a new
+person?
+
+The spatial filters learned from the training subjects must
+capture discriminative patterns that are sufficiently consistent
+between people.
+
+Inter-subject differences can make this difficult because the
+covariance and spatial structure learned from the training population
+may not represent the held-out subject well.
+
+#### What happens to LDA across subjects?
+
+After CSP, each trial is represented by a small number of CSP
+log-power features.
+
+With four CSP components LDA learns the class means and a shared covariance structure from the
+training-subject features.
+
+If the unseen subject's feature distribution is shifted relative to
+the training population, the learned LDA boundary may not transfer
+well.
+
+Cross-subject failure can therefore result from the CSP
+representation failing to transfer, the LDA decision boundary failing
+to transfer, or both.
+
+
+### 8) Data leakage in cross-subject evaluation
+
+Data leakage occurs when information that should not be available influences model fitting or model selection. [7]
+
+For a held-out subject, no information from that subject may influence
+learned components such as:
+
+- CSP spatial filters
+- LDA parameters
+- learned feature scaling
+- PCA or feature selection
+- learned normalization
+- hyperparameter selection
+
+Fitting CSP
+before the cross-validation split would allow EEG and labels from the
+test subject to influence the feature representation.
+
+For each LOSO fold:
+
+training subjects
+→ fit CSP
+→ transform training EEG
+→ fit LDA
+
+held-out subject
+→ apply already-fitted CSP
+→ apply already-fitted LDA
+→ prediction
+
+A Pipeline helps protect against leakage by ensuring that learned
+transformations are fitted using the same training subset as the
+classifier. [7]
+
+
+### 9) Fixed preprocessing vs learned preprocessing
+
+The general rule is:
+
+fixed predefined operation
+→ can be applied consistently
+
+data-learned transformation
+→ fit only using training data
+
+### 10) Structure of the combined dataset
+
+Week 5 processed each subject separately:
+
+X.shape ≈ (45, 64, 481)
+y.shape ≈ (45,)
+groups = recording runs
+
+Week 6 combines trials from all subjects:
+
+X.shape ≈ (all trials, 64, 481)
+y.shape ≈ (all trials,)
+groups.shape ≈ (all trials,)
+
+For each trial i:
+
+X[i] = EEG epoch
+y[i] = left/right class
+groups[i] = subject that produced the epoch
+
+Balanced accuracy also remains the primary metric.
+
+### 11) Cohort-level evaluation
+
+Each LOSO fold produces one balanced-accuracy score for one held-out
+subject.
+
+The result will therefore contain:
+
+Subject 1 BA
+Subject 2 BA
+...
+Subject 109 BA
+
+The main statistics will include:
+
+- mean subject-level balanced accuracy
+- median
+- range
+- distribution across subjects
+
+Averaging the subject-level scores gives each subject equal weight
+rather than allowing subjects with more trials to contribute more to
+the cohort score.
+
+
+### 12) Comparison with Week 5
+
+Week 5 produced one within-subject balanced-accuracy score per subject.
+
+Week 6 will produce one cross-subject balanced-accuracy score per
+subject.
+
+The important comparison becomes:
+
+subject | within-subject BA | cross-subject BA
+
+We want to figure out:
+How much does decoding performance change when subject-specific
+training information is removed?
+
+If cross-subject performance decreases substantially, this would
+suggest that information useful for within-subject decoding does not
+transfer perfectly between individuals.
+
+## 13) What Week 6 will not do
+
+The first cross-subject baseline will not:
+
+- tune CSP component count
+- change the frequency band
+- change the time window
+- introduce another classifier
+- use transfer learning
+- perform domain adaptation
+- use target-subject calibration
+- exclude subjects because their performance is poor
+- introduce deep learning
+
+The Week 6 result must first establish how the original CSP + LDA
+baseline behaves under strict subject-independent evaluation.
+
+
+### 14) Main questions I should be able to answer
+
+1. Why does random trial splitting not measure performance on unseen
+   subjects?
+
+Because trials from the same subject can occur in both training and
+testing, allowing the model to learn subject-specific structure.
+
+2. What does LOSO do?
+
+It removes every trial belonging to one subject from the training set
+and uses that entire subject as the test set.
+
+3. Why must CSP remain inside the Pipeline?
+
+Because CSP is supervised and learns its spatial filters from the EEG
+and class labels. The held-out subject must not influence those
+filters.
+
+4. Why is cross-subject decoding difficult?
+
+Because EEG distributions differ between individuals, so spatial
+features and decision boundaries learned from training subjects may
+not transfer perfectly to a new person.
+
+5. What is domain shift?
+
+A difference between the data distributions encountered during
+training and testing.
+
+6. What is the difference between domain generalization and domain
+adaptation?
+
+Domain generalization predicts an unseen domain without using that
+domain for model fitting. Domain adaptation uses some information from
+the target domain to adapt the model.
+
+7. Why do we keep the Week 5 model settings unchanged?
+
+So that differences between within-subject and cross-subject
+performance primarily reflect the change in the generalization
+problem rather than simultaneous changes to the model.
+
+
+## References Week 6
+
+[1] Goldberger AL et al. / PhysioNet. EEG Motor Movement/Imagery
+Dataset v1.0.0. PhysioNet. Dataset documentation.
+
+[2] scikit-learn developers. Cross-validation: evaluating estimator
+performance. Sections on grouped data and LeaveOneGroupOut.
+scikit-learn User Guide.
+
+[3] Saha S, Baumert M. Intra- and Inter-subject Variability in
+EEG-Based Sensorimotor Brain Computer Interface: A Review.
+Frontiers in Computational Neuroscience. 2020;13:87.
+doi:10.3389/fncom.2019.00087.
+
+[4] MNE-Python developers. mne.decoding.CSP documentation.
+MNE-Python.
+
+[5] Zhou K, Liu Z, Qiao Y, Xiang T, Loy CC.
+Domain Generalization: A Survey.
+IEEE Transactions on Pattern Analysis and Machine Intelligence.
+2023;45(4):4396-4415.
+doi:10.1109/TPAMI.2022.3195549.
+
+[6] Wu D, Jiang X, Peng R.
+Transfer learning for motor imagery based brain-computer interfaces:
+A tutorial.
+Neural Networks. 2022;153:235-253.
+doi:10.1016/j.neunet.2022.06.008.
+
+[7] scikit-learn developers.
+Common pitfalls and recommended practices: Data leakage;
+Pipeline documentation.
+scikit-learn User Guide.
+
+[8] scikit-learn developers.
+balanced_accuracy_score documentation.
+scikit-learn User Guide.
+
+[9] Lotte F, Bougrain L, Cichocki A, Clerc M, Congedo M,
+Rakotomamonjy A, Yger F.
+A review of classification algorithms for EEG-based
+brain-computer interfaces: a 10 year update.
+Journal of Neural Engineering. 2018;15(3):031005.
+doi:10.1088/1741-2552/aab2f2.

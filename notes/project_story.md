@@ -380,7 +380,235 @@ and will test whether the spatial motor-imagery patterns learned by CSP + LDA tr
 
 After establishing that baseline, later experiments can investigate controlled hyperparameter optimization, statistical significance, alternative classical methods, and eventually deep-learning approaches.
 
-### Week 6
+## Week 6 — Testing Cross-Subject Generalization
+
+### What did I build this week?
+
+This week I changed the evaluation problem from within-subject decoding to cross-subject decoding.
+
+I trained the model on EEG from 108 subjects and evaluated it on one completely unseen subject.
+
+I used Leave-One-Subject-Out cross-validation across all 109 EEGMMIDB subjects.
+
+For every fold:
+
+`108 training subjects`
+→ `fit CSP`
+→ `transform training EEG`
+→ `fit LDA`
+→ `apply the fitted model to one unseen subject`
+
+Each subject acted as the test subject  once.
+
+I  kept the model and preprocessing as similar as possible to Week 5:
+
+- 7–30 Hz EEG
+- +1 to +4 second machine-learning window
+- all 64 channels
+- four CSP components
+- LDA classification
+- balanced accuracy as the primary metric
+
+The major change was the level of generalization being tested.
+
+### What did I learn technically?
+
+The most important concept this week was that a model tested on unseen trials from a person already represented in training is not the same level of generalization as a model tested on an unseen individual.
+
+I learned how LeaveOneGroupOut can represent different scientific experiments depending on what is supplied as the grouping variable.
+
+The cross-validation mechanism itself did not fundamentally change. The meaning of the groups changed.
+
+I also learned how the combined cross-subject dataset has to be structured.
+
+For every trial:
+
+`X[i]`
+= the EEG epoch
+
+`y[i]`
+= the left/right class label
+
+`groups[i]`
+= the identity of the subject who produced that trial
+
+These three arrays must remain perfectly aligned.
+
+The final combined dataset contained:
+
+`4898 trials × 64 channels × 481 samples`
+
+with corresponding label and subject-ID arrays of length 4898.
+
+
+### What confused me?
+
+One concept I initially found difficult was covariate shift.
+
+I first thought it simply meant that the training and test data were different.
+
+More precisely, classical covariate shift means:
+
+`P_train(X) != P_test(X)`
+
+while the relationship between the inputs and labels is assumed to remain approximately stable:
+
+`P_train(y | X) ≈ P_test(y | X)`
+
+For EEG, this could mean that an unseen subject produces CSP feature values with a different distribution from the training subjects, while the general relationship between those features and left/right imagery remains similar.
+
+However, the relationship between features and labels may itself differ between individuals.
+
+I therefore learned that **domain shift** is the safer general term for the cross-subject problem, while covariate shift is one particular type of domain shift.
+
+To test the subject independant model, i wanted to only inspect the first fold, before the full experiment. 
+
+It led me to understand what `next()` could do when testing the cross-validation splitter:
+
+`cv.split(X, y, groups)` creates an iterator capable of producing all 109 folds.
+
+`next(...)` retrieves just one fold from that sequence.
+
+### What unexpected problem did I encounter?
+
+When combining the EEG from all 109 subjects into one array, NumPy raised an error because one subject had epochs with 385 time samples instead of the expected 481.
+
+The normal machine-learning window is three seconds long:
+
+`+1 s to +4 s`
+
+At 160 Hz this produces:
+
+`3 × 160 + 1 = 481 samples`
+
+The irregular subject instead produced:
+
+`385 samples`
+
+which corresponds to 128 Hz.
+
+This irregularity had not caused Week 5 to fail because subjects were modeled independently and their EEG arrays never needed to be concatenated.
+
+However cross-subject analysis required every subject to have the same input dimensions, because we had to concatentate across subjects.
+
+I therefore updated the preprocessing function so that recordings with a sampling frequency different from 160 Hz are resampled to 160 Hz before epoching.
+
+Basically, Cross-subject machine learning requires a common numerical representation of the data.
+
+I later reran the Week 5 baseline using the harmonized preprocessing protocol. The results changed only negligibly, showing that the original Week 5 conclusion was robust.
+
+
+### What did the cross-subject experiment show?
+
+The leave-one-subject-out CSP + LDA baseline produced:
+
+- mean balanced accuracy: approximately 0.565
+- median balanced accuracy: approximately 0.530
+- minimum balanced accuracy: approximately 0.426
+- maximum balanced accuracy: approximately 0.889
+
+The corresponding harmonized Week 5 within-subject baseline had:
+
+- mean balanced accuracy: approximately 0.597
+- median balanced accuracy: approximately 0.568
+
+For every subject, I directly compared:
+
+`cross-subject BA - within-subject BA`
+
+The mean paired change was approximately:
+
+`-0.032`
+
+and the median paired change was approximately:
+
+`-0.021`
+
+Therefore, removing subject-specific training EEG reduced balanced accuracy by about 3.2 percentage points on average.
+
+However, the effect was not uniform.
+
+Across the 109 subjects:
+
+- 46 performed better under cross-subject training
+- 63 performed worse
+
+The scatter plot comparing within-subject and cross-subject performance therefore showed substantial heterogeneity rather than a uniform downward shift.
+
+
+### How do I interpret this result?
+
+The result suggests that CSP + LDA learns some motor-imagery structure that transfers between people.
+
+Cross-subject performance did not collapse to the 0.50 reference level even though the model had never seen EEG from the target subject during fitting.
+
+At the same time, average performance decreased when subject-specific information was removed.
+
+This suggests that subject-specific EEG structure also contributes to decoding performance.
+
+An important additional observation is that the cross-subject model had dramatically more training data.
+
+The within-subject model might train on only around 30 trials from the target person in each fold.
+
+The cross-subject model instead trained on approximately 4850 trials from 108 other subjects.
+
+For some subjects, the larger population dataset may compensate for the lack of subject-specific EEG.
+
+For others, their individual neural or recording characteristics may differ enough from the population that subject-specific training is more valuable.
+
+The current experiment cannot determine exactly why particular subjects improve or worsen.
+
+### What can I not conclude yet?
+
+The results are still primarily descriptive.
+
+I cannot yet claim that:
+
+- the cross-subject mean is statistically significantly above chance
+- the within-subject and cross-subject results are statistically significantly different
+- domain shift is definitively the cause of the performance reduction
+- a particular neurophysiological mechanism explains why some subjects generalize better than others
+- CSP + LDA is the optimal classical model
+
+I also cannot interpret individual subjects with balanced accuracy above 0.50 as necessarily showing statistically significant decoding.
+
+Those questions require later statistical testing and controlled model comparison.
+
+### What decision did I make?
+
+I decided not to compensate for the cross-subject performance drop by immediately changing the classifier, CSP component count, time window, or frequency band.
+
+Keeping the Week 5 model fixed made the comparison scientifically interpretable.
+
+This establishes a clean subject-independent baseline that future methods can be compared against.
+
+
+### How does this connect to the larger project?
+
+Week 6 asked whether the learned representation survives when the person changes.
+
+The answer appears to be partly.
+
+Some discriminative structure transfers across individuals, but the reduction in average performance and the strong subject-to-subject variability show that generalization across people remains a substantial challenge.
+
+This moves the project beyond simply asking whether EEG can be classified.
+
+The more important question is becoming: what information is truly shared across people, what information is subject-specific, and how can a model become robust to that difference?
+
+
+### What is the next step?
+
+The next stage is to move from establishing baselines to improving the classical decoding pipeline.
+
+Any model tuning must preserve the evaluation logic learned in Weeks 5 and 6.
+
+Hyperparameters should not be selected using the final test subject or test fold.
+
+Future experiments can investigate whether changes can improve decoding while maintaining strict separation between model selection and evaluation.
+
+This will require learning about nested cross-validation and principled hyperparameter tuning before changing the baseline.
+
+### Week 7
 
 **What did I build this week?**
 

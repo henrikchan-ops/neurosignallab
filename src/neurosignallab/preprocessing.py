@@ -29,6 +29,10 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
         eegbci.standardize(raw_run)
         raw_run.set_montage("standard_1005")
 
+        #Harmonize to 160 Hz for concatination
+        if raw_run.info["sfreq"] != 160.0:
+            raw_run.resample(160.0)
+
         # Extract motor-imagery events for metadata
         run_events, run_event_id = (
             mne.events_from_annotations(raw_run)
