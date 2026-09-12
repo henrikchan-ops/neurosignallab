@@ -608,7 +608,241 @@ Future experiments can investigate whether changes can improve decoding while ma
 
 This will require learning about nested cross-validation and principled hyperparameter tuning before changing the baseline.
 
-### Week 7
+## Week 7 — Controlled CSP Hyperparameter Selection
+
+### What did I build this week?
+
+This week I moved from evaluating a fixed CSP + LDA model to selecting
+CSP hyperparameters using nested cross-validation.
+
+The outer evaluation remained Leave-One-Subject-Out cross-validation.
+
+The remaining 108 subjects were used for model development.
+
+Inside each outer fold, five-fold GroupKFold cross-validation was used
+to compare eight CSP configurations:
+
+- n_components = 2, 4, 6, or 8
+- covariance regularization = None or Ledoit-Wolf
+
+Balanced accuracy was used for both inner model selection and outer
+evaluation.
+
+CSP remained inside the Pipeline so that its spatial filters were
+refitted separately inside every training split.
+
+After the inner search selected the best configuration, GridSearchCV
+refitted that configuration using all outer-training subjects before
+the model was evaluated on the untouched outer test subject.
+
+### What did I learn technically?
+
+The most important distinction this week was between model fitting,
+model selection, and model assessment.
+
+Model selection chooses hyperparameters such as the number of CSP
+components.
+
+Model assessment estimates how well the entire procedure performs on
+previously unseen data.
+
+I learned that using the same cross-validation scores both to select a
+hyperparameter and to report final performance can produce optimistic
+results.
+
+The best-performing hyperparameter configuration is selected from
+noisy validation estimates. The winner may therefore partly be the
+configuration that happened to receive a favorable validation score.
+
+Nested cross-validation prevents this by separating the two
+jobs:
+
+`inner CV = choose`
+
+`outer CV = judge`
+
+The outer test subject never participates in the inner
+hyperparameter-selection process.
+
+
+### How did nested cross-validation work?
+
+For each outer fold:
+
+1. One subject was completely held out.
+2. The remaining 108 subjects became the development dataset.
+3. Five-fold GroupKFold divided those subjects into inner training and
+   validation folds.
+4. GridSearchCV evaluated all eight CSP configurations.
+5. The configuration with the highest mean inner balanced accuracy was
+   selected.
+6. GridSearchCV refitted that configuration using all 108 outer
+   training subjects.
+7. The resulting model was finally evaluated on the untouched outer
+   subject.
+
+This entire procedure was repeated for all 109 subjects.
+
+Random trial splitting would allow trials from one
+person to appear in both inner training and validation data, which
+would optimize the model for the wrong generalization problem.
+
+
+### What did I learn about GridSearchCV?
+
+The Pipeline supplied to GridSearchCV acts as an estimator template.
+
+GridSearchCV creates and fits separate copies of the CSP + LDA Pipeline
+for the different configurations and validation folds.
+
+After identifying the best configuration, `refit=True` causes a fresh
+copy of the winning Pipeline to be fitted using all outer-training
+data.
+
+The fitted winning estimator is stored as `search.best_estimator_`. Therefore `search.predict(...)` uses the final fitted winner rather than the original unfitted
+Pipeline object.
+
+I also learned that`search.best_score_` is an inner validation score used for model selection.
+
+The outer balanced accuracy is the score used for final evaluation.
+
+### What did I learn about covariance regularization?
+
+CSP depends on covariance matrices estimated from EEG.
+
+Empirical covariance estimates may contain sampling noise.
+
+Ledoit-Wolf shrinkage attempts to make covariance estimation more
+stable by shrinking the empirical covariance matrix toward a simpler
+scaled identity matrix.
+
+Ledoit-Wolf estimates the shrinkage intensity from the available
+training data rather than requiring a manually selected alpha-variable.
+
+The method attempts to reduce expected covariance-estimation error.
+
+However, whether this improves classification performance still has to
+be determined empirically.
+
+### What did the experiment show?
+
+The fixed Week 6 cross-subject baseline achieved a mean balanced
+accuracy of approximately:
+
+`0.565`
+
+The nested-tuned Week 7 procedure achieved:
+
+`mean BA = 0.575`
+
+`median BA = 0.533`
+
+`range = 0.383–0.911`
+
+The average paired improvement relative to the fixed baseline was:
+
+`+0.0099`
+
+or approximately one balanced-accuracy percentage point.
+
+The median paired change was:
+
+`0.000`
+
+Across the 109 subjects:
+
+- 41 improved
+- 37 worsened
+- 31 were unchanged
+
+Therefore tuning produced a small improvement at the cohort level but
+did not consistently improve every subject.
+
+### What hyperparameters were selected?
+
+The inner model-selection procedure selected:
+
+- 4 CSP components in 16 outer folds
+- 6 CSP components in 41 outer folds
+- 8 CSP components in 52 outer folds
+- 2 CSP components in 0 outer folds
+
+Therefore six or eight components were selected in 93 of 109 outer
+folds.
+
+This suggests that the inner validation procedure generally preferred
+a richer CSP representation than the original four-component
+baseline.
+
+However, this strong preference translated into only minimal
+improvement in outer-test performance.
+
+### What happened to Ledoit-Wolf regularization?
+
+Ledoit-Wolf was selected in:
+
+`0 / 109 outer folds`
+
+No CSP regularization was selected in all 109 folds.
+
+This means that, under the current dataset, preprocessing protocol and
+search space, empirical covariance consistently produced better inner
+validation performance than Ledoit-Wolf shrinkage.
+
+It means that it was not useful enough to be selected in this
+specific experiment.
+
+### What was the most important lesson?
+
+The most important lesson was that better validation performance does
+not automatically translate into a large improvement on genuinely
+unseen data.
+
+Inner cross-validation frequently preferred six or eight CSP
+components, but the resulting outer performance improved by only about
+one percentage point on average.
+
+If I had only examined the inner search results, I could have
+overestimated the value of tuning.
+
+The outer folds showed the actual improvement achieved when the entire
+selection procedure was applied to unseen subjects.
+
+### What decision did I make?
+
+I decided to freeze the predefined Week 7 search after viewing the
+outer results.
+
+I will not now add more CSP components options or introduce several
+new covariance estimators simply because the current results suggest
+that larger component counts might perform well.
+
+Doing so would use the outer test results to guide further model
+development and would gradually undermine their role as independent
+evaluation data.
+
+Future experiments should therefore represent new predefined research
+questions rather than repeated attempts to optimize the same Week 7
+outer scores.
+
+### How does this connect to the larger project?
+
+The project has now progressed through three increasingly demanding
+classical decoding questions:
+
+Week 5:Can the model generalize to an unseen run from the same person?
+
+Week 6: Can the fixed model generalize to an entirely unseen person?
+
+Week 7: Can model settings be selected automatically without using the unseen
+person, and does that selection procedure actually improve
+generalization?
+
+For week 7, the model settings can be selected automatically, but it did not yield massive imrpovement. The CSP tuning increased the balanced accuracy from 0.565 to 0.575. 
+
+It suggests that model selection can extract a bit more performance, but that the tunin alone does not solve the cross-subject generalization problem. 
+
+## Week 8
 
 **What did I build this week?**
 

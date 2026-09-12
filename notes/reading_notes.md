@@ -1469,3 +1469,525 @@ A review of classification algorithms for EEG-based
 brain-computer interfaces: a 10 year update.
 Journal of Neural Engineering. 2018;15(3):031005.
 doi:10.1088/1741-2552/aab2f2.
+
+## Week 7 — Nested Cross-Validation and Controlled Hyperparameter Selection
+
+### 1) Goal
+
+The goal of Week 7 is to determine whether controlled hyperparameter
+selection can improve the subject-independent CSP + LDA motor-imagery
+decoder without producing a biased generalization performance.
+
+Week 6 used a fixed model with 4 CSP-components. 
+
+Week 7 introduces model selection: Can CSP hyperparameters be selected using only training-subject data in a way that improves performance on completely unseen subjects?
+
+### 2) Parameters vs hyperparameters
+
+Parameters are values learned directly during model fitting.
+
+Examples:
+
+CSP:
+- spatial-filter weights
+
+LDA:
+- class means
+- shared covariance structure
+- decision coefficients
+
+Hyperparameters control the model-fitting procedure and are chosen
+outside the ordinary fit operation. [1]
+
+Examples relevant to CSP include:
+
+- n_components
+- covariance regularization (`reg`)
+
+A hyperparameter is not directly estimated by CSP or LDA during
+`fit()`.
+
+However, once validation performance is used to choose a
+hyperparameter, the hyperparameter choice has effectively been learned
+from data.
+
+Therefore hyperparameter selection also requires separation from the
+final test data too.
+
+### 3) Model fitting, model selection, and model assessment
+
+These are three different processes.
+
+Model fitting:
+
+training data
+→ learn CSP filters
+→ learn LDA parameters
+
+Model selection:
+
+validation data
+→ compare candidate hyperparameters
+→ choose configuration
+
+Model assessment:
+
+independent test data
+→ estimate how the entire chosen procedure generalizes
+
+The validation data are allowed to influence model selection.
+
+The test data is not. We do not want the test data to be part of model selection. The test data should be evaluated with an already selected model.[1,2]
+
+#### What is selection bias?
+
+Selection bias is when you select the model based on the best test performance. 
+
+We want the selection to be bias, to truly figure out what the best overall model is. Selecting the model based on test result may cause the model to fit noisy performance, instead of differences between algorithms.
+
+Cawley and Talbot showed that the model-selection criterion itself can
+be overfit, producing optimistic performance estimates. [3]
+
+Varma and Simon similarly showed that using the same cross-validation
+procedure both to optimize a classifier and to estimate its error can
+produce biased results. [2]
+
+
+### 4) Nested cross-validation
+
+Nested cross-validation separates hyperparameter selection from final
+performance estimation.
+
+It has two loops:
+
+OUTER CV → estimates generalization performance
+
+INNER CV → selects hyperparameters
+
+For the Week 7 cross-subject experiment the outer fold consists of 1 subject as the test split, and 108 as the train split. Then the inner fold splits 4/5 of the subjects into training split and 1/5 into model validation splits.
+
+Subject 1 is completely excluded while hyperparameters are selected.
+
+After selecting the best configuration, the model is refitted on all
+outer-training subjects and evaluated once on Subject 1.
+
+The process is repeated for every subject. [1–4]
+
+#### Outer Leave-One-Subject-Out evaluation
+
+The outer loop retains the Week 6 evaluation structure.
+
+This means only one subject is in each of the held-out groups.
+
+This allows the tuned model to be compared directly with the Week 6
+fixed CSP + LDA baseline.
+
+
+#### Inner group-aware cross-validation
+
+The inner cross-validation must also preserve subject identity.
+
+We do not want to optimize the hyperparameters for new trials from known subjects
+
+GroupKFold function guarantees that one subject does not occur on both sides of
+the same inner-split. [5]
+
+### 5) Why the inner loop does not need LOSO
+
+It would be possible to use Leave-One-Subject-Out for both the inner
+and outer loops.
+
+However, this would require approximately 108 inner folds for every
+outer fold and for every hyperparameter configuration.
+
+Nested cross-validation is already computationally taxing.
+
+A smaller GroupKFold maintains the essential subject-separation rule
+while making hyperparameter search substantially more manageable.
+
+Leave-one-out-style validation can also have relatively high
+variance and computational cost. [4,5]
+
+
+### 6) GridSearchCV
+
+GridSearchCV function performs exhaustive search over a predefined set of
+hyperparameter combinations. [6]
+
+A grid search contains:
+
+- a model pipeline -> CSP/LDA
+
+- a parameter grid
+
+- a cross-validation splitter -> inner cross-validation group
+
+- a scoring function -> balanced accuracy
+
+GridSearchCV tests every candidate combination across the inner folds
+and chooses the configuration with the highest mean inner validation
+score.
+
+After that, we can refit all outer-training subjects to the new configuration. 
+
+Keep in mind GridSearchCV is not the final performance.
+
+### 7) Pipeline hyperparameter names
+
+Parameters inside a scikit-learn Pipeline are addressed using:
+
+step_name__parameter_name
+
+Two underscores are used. [7]
+
+For a Pipeline containing steps called:
+
+"csp"
+"lda"
+
+CSP's number of components becomes:
+
+csp__n_components
+
+and CSP's covariance regularization becomes:
+
+csp__reg
+
+
+### 8) CSP n_components
+
+`n_components` controls how many CSP components are retained.
+
+MNE explicitly states that CSP `n_components` should be selected using
+cross-validation. [8]
+
+Too few components may discard useful discriminative information.
+
+Too many components may introduce weaker or noisy spatial directions
+and increase model variance.
+
+Therefore more components do not automatically mean better
+performance.
+
+
+### 9) Bias and variance
+
+Bias describes systematic error caused by a model
+being too constrained to capture relevant structure.
+
+Variance describes sensitivity to the particular training dataset.
+
+
+simpler model:
+- higher bias
+- lower variance
+
+more flexible model:
+- lower bias
+- potentially higher variance
+
+Hyperparameters influence this trade-off.
+
+For CSP:
+
+few components → simpler representation
+
+many components → richer representation → potentially more noise and instability
+
+The optimal choice should be based on validation performance rather
+than training performance. [9]
+
+
+### 10) CSP covariance regularization
+
+CSP depends on class covariance matrices.
+
+Basically the sum of left and right signals describe spatial covariance of the EEG.
+
+An empirical covariance estimate follows the available training data
+closely but may be unstable.
+
+Regularization makes the covariance estimate more constrained and
+potentially more stable. Basically, it makes small fluctuations have smaller effect.
+
+MNE CSP exposes this through the `reg` parameter. [8]
+
+`reg=None` uses empirical covariance estimation.
+
+Other supported settings can introduce shrinkage or alternative
+regularized covariance estimators.
+
+### 11) Shrinkage
+
+Shrinkage combines the empirical covariance estimate with a simpler,
+more stable covariance structure.
+
+A looser covariance structure makes small fluctuations in covariance have less effect.
+
+If its shown mathematically: 
+
+Sigma_regularized = 
+(1 - alpha) * Sigma_empirical
++
+alpha * Sigma_simple
+
+Small alpha:
+→ mostly empirical covariance
+
+larger alpha:
+→ stronger regularization
+
+Regularization introduces some bias but can reduce variance.
+
+Methods such as Ledoit-Wolf and OAS estimate shrinkage in principled
+ways and are supported by MNE covariance estimation. [10]
+
+
+### 12) CSP regularization vs LDA regularization
+
+CSP covariance regularization and LDA covariance regularization act at
+different stages.
+
+CSP regularization affects EEG channel variance, which affects CSP spatial filters
+
+LDA regularization affects CSP feature covariance, which affects the LDA classifier
+
+
+Scikit-learn supports shrinkage for LDA when compatible solvers such
+as `lsqr` or `eigen` are used. [11]
+
+The initial Week 7 experiment should keep LDA fixed so that the search
+focuses on the CSP representation. We do not want multiple major changes to the model. 
+
+
+### 13) The scoring metric
+
+Balanced accuracy remains the primary metric.
+
+The same metric should be used for inner model selection and outer model evaluation
+
+Therefore GridSearchCV should explicitly optimize balanced accuracy.
+
+The choice of scoring metric determines what the search means by the
+"best" model.
+
+
+### 14) Grid search vs randomized search
+
+GridSearchCV evaluates every parameter combination specified in a
+grid. [6]
+
+RandomizedSearchCV samples a fixed number of configurations from a
+parameter space instead of testing every possible combination. [13]
+
+Randomized search is useful when the parameter space is large.
+
+For Week 7, we only have a small amount of hyperparameters to consider, so that creates smaller candidate sets to search through. With larger distributions and grids, we would choose th erandomized search
+
+
+### 15) The search space is part of the experiment
+
+Searching more candidate configurations provides more opportunities
+to fit noise in the validation estimates.
+
+The candidate hyperparameter grid itself is part of the
+experimental design.
+
+The search space should be small, scientifically plausable and defined before examining test results. 
+
+Repeatedly modifying the grid after seeing test performance gradually
+turns the test dataset into development data. [3]
+
+Keep in mind, GridSearchCV's `best_score_` represents the mean inner validation score
+of the selected hyperparameter configuration.
+
+### 16) Computational cost
+
+Nested cross-validation requires many model fits.
+
+If:
+
+C = number of candidate configurations
+K = number of inner folds
+O = number of outer folds
+
+then the inner search requires approximately:
+
+C × K × O
+
+model fits.
+
+For example:
+
+12 candidates
+× 5 inner folds
+× 109 outer folds
+=
+6540 inner fits
+
+plus refitting the selected model in every outer fold.
+
+This is why we use GroupKFold and keep the search space compact. 
+
+
+### 17) What the final nested result represents
+
+Nested CV does not necessarily identify one universal
+hyperparameter configuration.
+
+Different outer folds may choose different settings.
+
+For example:
+
+Subject 1 outer fold:
+best n_components = 6
+
+Subject 2:
+best n_components = 4
+
+Subject 3:
+best n_components = 8
+
+The nested result therefore estimates the performance of a procedure using this workflow:
+
+Given training subjects, use grouped cross-validation to select the hyperparameters, refit the model, and apply it to an unseen person.
+
+### 18) Hyperparameter-selection stability
+
+The selected hyperparameters can be recorded for every outer fold.
+
+This allows questions such as:
+
+How often was each n_components value selected?
+
+Did one covariance regularization method dominate?
+
+Were the chosen settings highly variable across outer folds?
+
+Stable selections may indicate that one configuration is favored by the training data.
+
+Highly variable selections may indicate that the optimum is affected by particular subjects used for training.
+
+This shoud be interpreted carefully.
+
+
+### 19) Tuned vs fixed baseline
+
+The main Week 7 result will compare:
+
+Week 6:
+fixed CSP + LDA
+
+vs
+
+Week 7:
+nested-CV-selected CSP + LDA
+
+Both should use the same outer subject-level evaluation.
+
+For every subject:
+
+subject
+| fixed cross-subject BA
+| tuned cross-subject BA
+| difference
+
+This will determine whether the model-selection procedure actually
+improves performance on unseen subjects.
+
+Inner CV estimates contain noise, and a configuration that wins the
+inner search does not necessarily generalize better to the outer test
+subject.
+
+Brain-decoding studies have shown that cross-validation estimates can
+have substantial variability and that parameter tuning does not always
+outperform sensible default models. [4]
+
+### 20) Main Week 7 leakage rules
+
+The outer test subject must not influence:
+
+- CSP fitting
+- LDA fitting
+- hyperparameter selection
+- covariance regularization selection
+- feature selection
+- learned normalization
+- model-family selection
+
+The inner validation subjects may influence hyperparameter selection,
+because that is their purpose.
+
+Everything learned from data must be fitted within the appropriate
+training split.
+
+## References
+
+[1] scikit-learn developers.
+Tuning the hyper-parameters of an estimator.
+scikit-learn User Guide.
+
+[2] Varma S, Simon R.
+Bias in error estimation when using cross-validation for model
+selection.
+BMC Bioinformatics. 2006;7:91.
+doi:10.1186/1471-2105-7-91.
+
+[3] Cawley GC, Talbot NLC.
+On Over-fitting in Model Selection and Subsequent Selection Bias in
+Performance Evaluation.
+Journal of Machine Learning Research.
+2010;11:2079–2107.
+
+[4] Varoquaux G, Raamana PR, Engemann DA, Hoyos-Idrobo A,
+Schwartz Y, Thirion B.
+Assessing and tuning brain decoders: Cross-validation, caveats, and
+guidelines.
+NeuroImage. 2017;145(Pt B):166–179.
+doi:10.1016/j.neuroimage.2016.10.038.
+
+[5] scikit-learn developers.
+GroupKFold and grouped cross-validation documentation.
+scikit-learn User Guide.
+
+[6] scikit-learn developers.
+GridSearchCV documentation.
+scikit-learn.
+
+[7] scikit-learn developers.
+Pipeline documentation.
+scikit-learn.
+
+[8] MNE-Python developers.
+mne.decoding.CSP documentation.
+MNE-Python.
+
+[9] scikit-learn developers.
+Validation curves: plotting scores to evaluate models.
+Section on bias, variance, underfitting, and overfitting.
+scikit-learn User Guide.
+
+[10] Engemann DA, Gramfort A.
+Automated model selection in covariance estimation and spatial
+whitening of MEG and EEG signals.
+NeuroImage. 2015;108:328–342.
+doi:10.1016/j.neuroimage.2014.12.040.
+
+[11] scikit-learn developers.
+Linear and Quadratic Discriminant Analysis.
+Section on shrinkage and covariance estimation.
+scikit-learn User Guide.
+
+[12] scikit-learn developers.
+balanced_accuracy_score documentation.
+scikit-learn.
+
+[13] scikit-learn developers.
+RandomizedSearchCV documentation.
+scikit-learn.
+
+[14] Blankertz B, Tomioka R, Lemm S, Kawanabe M, Müller KR.
+Optimizing Spatial Filters for Robust EEG Single-Trial Analysis.
+IEEE Signal Processing Magazine.
+2008;25(1):41–56.
+doi:10.1109/MSP.2008.4408441.
