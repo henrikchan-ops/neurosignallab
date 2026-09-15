@@ -1991,3 +1991,733 @@ Optimizing Spatial Filters for Robust EEG Single-Trial Analysis.
 IEEE Signal Processing Magazine.
 2008;25(1):41–56.
 doi:10.1109/MSP.2008.4408441.
+
+## Week 8 — Statistical Validation, Uncertainty, and Robustness
+
+### 1) Goal
+
+The goal of Week 8 is to determine how much confidence can be placed
+in the classical EEG decoding results in Weeks 5–7.
+
+The previous experiments produced point estimates:
+
+Week 5:
+within-subject CSP + LDA
+mean balanced accuracy ≈ 0.597
+
+Week 6:
+fixed cross-subject CSP + LDA
+mean balanced accuracy ≈ 0.565
+
+Week 7:
+nested-tuned cross-subject CSP + LDA
+mean balanced accuracy ≈ 0.575
+
+These numbers describe observed performance, but they do not by
+themselves quantify uncertainty or statistical evidence.
+
+Week 8 therefore asks:
+
+1. How uncertain are the cohort-level performance estimates?
+2. Is the within- to cross-subject performance change convincing?
+3. Did nested hyperparameter tuning produce a systematic improvement?
+4. How should chance-level decoding be assessed?
+5. Are the conclusions subject variability and known data irregularities?
+
+
+### 2) Unit of statistical inference
+
+The statistical unit should match the scientific unit of
+generalization.
+
+Therefore the primary unit of inference is the subject:
+
+n = 109 subjects
+
+not:
+
+n = 4898 trials
+
+Trials belonging to the same subject are correlated and cannot be
+treated as thousands of independent participants.
+
+Treating correlated trials as independent observations would create
+pseudoreplication and artificially underestimate uncertainty.
+
+Subject-level resampling and paired comparisons should therefore be
+used for the main cohort analyses.
+
+
+### 3) Point estimates and uncertainty
+
+A point estimate is one numerical estimate of performance.
+
+For example:
+
+mean cross-subject BA = 0.565
+
+A different sample of subjects would not produce exactly the same
+number.
+
+Therefore predictive performance should be reported together with an
+estimate of uncertainty.
+
+However, cross-validation results in neuroimaging can have substantial
+uncertainty, and variance calculated across CV folds and underestimate uncertainty across folds since they are not independent. Interpreting fold-to-fold variability is not a reliable standard error. [1,2]
+
+
+We want to know how uncertain these point estimates are. 
+
+### 4) Confidence intervals
+
+A confidence interval gives a range of possible values around an estimated point.
+
+For example:
+
+mean BA = 0.565
+95% CI = [0.548, 0.582]
+
+A narrow interval indicates greater precision.
+
+A wide interval indicates greater uncertainty.
+
+A 95% confidence interval should not be interpreted as a 95%  probability that the true parameter lies inside the
+particular observed interval.
+
+Instead, it meants that across repeated datasets, approximately 95% of intervals
+constructed by the same procedure would contain the target point estimate.
+
+
+### 5) Bootstrap resampling
+
+The bootstrap estimates uncertainty by repeatedly resampling the
+observed units with replacement units. [3]
+
+This is used for scores that do not assume normal distribution.
+
+For this project, the resampling unit should be the subject.
+
+A bootstrap replicate contains 109 subject observations sampled with
+replacements from the original 109 subjects.
+
+Some subjects can appear multiple times and some may not appear in a
+particular replicate.
+
+They all end up creating a mean BA of the bootstrap sample.
+
+
+Repeating this thousands of times produces a bootstrap distribution.
+
+This can be used to estimate:
+
+- confidence intervals
+- standard errors
+- uncertainty in mean balanced accuracy
+- uncertainty in paired model differences
+
+### 6) Paired bootstrap
+
+When comparing two models evaluated on the same subjects, the
+observations are paired.
+
+For Subject i:
+
+fixed_i
+tuned_i
+
+belong together.
+
+Bootstrap resampling must preserve that pairing.
+
+If Subject i is sampled, both its fixed and tuned scores must be
+included.
+
+The primary statistic can then be:
+
+difference_i = tuned_i - fixed_i
+
+and bootstrap samples can be used to estimate a confidence interval
+around the mean paired difference.
+
+
+### 7) Confidence interval vs hypothesis test
+
+A confidence interval addresses:
+
+How large could the effect possible be?
+
+A hypothesis test addresses:
+
+Would an effect of this size be unusual if some hypothesis were true (we usually use th enull hypothesis)?
+
+### 8) Null and alternative hypotheses
+
+For a paired comparison of Week 6 and Week 7, a null hypothesis can be:
+
+H0:
+mean(tuned BA - fixed BA) = 0
+
+A two-sided alternative is:
+
+H1:
+mean(tuned BA - fixed BA) != 0
+
+A one-sided alternative would instead test a pre-specified direction.
+
+Because the Week 7 results have already been observed, a two-sided test
+is preferable for the formal fixed-vs-tuned comparison. We just want to know whether or not there is significant difference between the two methods. 
+
+
+### 9) P-values
+
+A p-value is calculated under the assumption that the null hypothesis
+is true.
+
+It represents how unusual the observed statistic would be under compared to assumption of the null hypothesis.
+
+If p= 0.02: 
+It means that, assuming the null hypothesis is true, hese results would occur 2% of the time in this procedure.
+
+
+### 10) Statistical vs practical significance
+
+A statistically detectable difference can still be practically small.
+
+For example, the Week 7 tuned model improved mean balanced accuracy by
+approximately:
+
++0.0099
+
+or roughly one balanced-accuracy percentage point.
+
+Typically a p < 0.05 signifies statistical significance, meaning that the null-hypothesis would not hold true. However, its practical importance still depends on the
+size of the effect and its confidence interval.
+
+Therefore results should be described using:
+
+effect size
++
+confidence interval
++
+p-value
+
+rather than only:
+
+significant / non-significant
+
+
+### 11) Effect size
+
+Effect size tells us how large the effect is.
+
+The most interpretable effect size for the current
+experiments is the difference in balanced accuracy.
+
+For two models:
+
+Delta BA =
+BA_B - BA_A
+
+For example:
+
+Delta BA = +0.010
+
+means that Method B improved balanced accuracy by approximately one
+percentage point on average.
+
+### 12) Paired comparisons
+
+Week 6 and Week 7 were evaluated on the same 109 outer test subjects.
+
+Therefore their results are paired.
+
+For each subject:
+
+d_i =
+tuned_i - fixed_i
+
+The analysis should focus on the collection of paired differences
+rather than treating the two sets of scores as independent samples.
+
+
+### 13) Paired permutation test
+
+A paired permutation test evaluates whether the assignment of the two
+methods within each subject is exchangeable under the null
+hypothesis. [4]
+
+For one subject:
+
+fixed_i
+tuned_i
+
+the values can either remain in their observed positions or be swapped.
+
+Across subjects, these swaps are performed randomly and the test
+statistics, such as the mean paired difference, is recalculated.
+
+Repeating this procedure generates distribution that could provide evidence for and against H0.
+
+
+#### Sign-flip interpretation of paired permutation
+
+For paired differences:
+
+d_i = tuned_i - fixed_i
+
+swapping the two methods is equivalent to changing:
+
+d_i -> -d_i
+
+Therefore a paired permutation test can also be understood as randomly
+flipping the sign of each subject's difference under the null.
+
+#### Why do we not do a t-test?
+
+A paired t-test requires many distributional assumptions, such as the data fitting into a normal distribution. 
+
+The BA differences are potentiionally bounded, contain zeros, descrete or skewed. 
+
+### 14) Wilcoxon signed-rank test
+
+The Wilcoxon signed-rank test is a paired non-parametric test. Meaning it does not use the given values of the BA difference, but assigns them a rank depending on how much larger or smaller their value is compared to other data. 
+
+This makes it so that extremely large or small outlier data does not interfere with our analysis of significance. [5]
+
+However, the current data contain bounded values, many exact ties, and
+a directly interpretable paired design.
+
+A permutation test is therefore a particularly transparent primary
+analysis for this project.
+
+
+### 15) Chance level vs statistical significance
+
+For binary balanced accuracy:
+
+expected chance BA = 0.5
+
+However:
+
+observed BA > 0.5
+
+does not automatically imply statistically significant decoding by the model.
+
+Combrisson and Jerbi demonstrated that theoretical chance level and
+the statistical significance threshold for decoding accuracy are not
+equivalent. [6]
+
+Therefore 0.50 should be interpreted as the expected binary chance
+value, not an automatic significance threshold.
+
+### 16) Label-permutation testing
+
+Classifier-level permutation testing can test the null hypothesis when
+there is no meaningful relationship between EEG  and class
+labels. [7]
+
+We want to figure out if the model is exploiting information between the EEG and the labels.
+
+The procedure is:
+
+original EEG + labels
+→ compute real classifier performance
+
+shuffle labels
+→ rerun classifier evaluation
+→ obtain null score
+
+repeat many times
+→ null distribution
+
+If there is no relationship between EEG and the labels, the score should look similar to shuffled-label scores.
+
+Ojala and Garriga describe label-permutation testing as a way to
+evaluate whether a classifier has found real class structure, or is abusing the label markings. [7]
+
+
+### 17) Exchangeability and restricted permutations
+
+Labels should only be permuted in ways that preserve important
+experimental structure.
+
+Unrestricted shuffling across every trial and
+subject would remove everything about the experiment we want to test.
+
+A more appropriate null-dataset can preserve:
+
+- subject identity
+- run identity
+- trial counts
+- class counts
+
+while destroying the EEG-label relationship.
+
+A possible strategy is therefore to permute left/right labels within
+subject/run blocks.
+
+The validity of a permutation test depends on which labels you can swap without damaging the experiment. That is what exchangeability means.
+
+
+### 18) Full-pipeline permutation testing
+
+If the real prediction procedure contains data-driven model selection,
+the same model-selection procedure should normally be rerun under each
+permutation.
+
+For Week 7:
+
+shuffle labels
+→ inner hyperparameter selection
+→ refit
+→ outer evaluation
+
+for each permutation
+
+Selecting hyperparameters using real labels and then permuting
+only the final classification stage would not reproduce the null
+distribution of the complete algorithm. The whole pipelin must be permutated.
+
+This makes full Week 7 label-permutation testing computationally very
+expensive.
+
+
+### 19) Practical permutation strategy
+
+If you have 1000 label permutations put into the nested week 7 procedure -> it creates millions of model fits.
+
+Week 8 should distinguish:
+
+1. Subject-level statistical inference using the already-computed outer
+subject scores to pair permutation/bootstrap methods.
+
+2. Rerun of full classifier-level  with label-permutations. 
+
+Subject-level paired permutation tests are computationally inexpensive.
+
+A full nested Week 7 classifier permutation would require millions of
+model fits if thousands of permutations were used.
+
+A classifier-level chance test is therefore more practical
+for the Week 6 procedure.
+
+
+### 20) Empirical permutation p-values
+
+If B permutations are performed, and C amount of permutation
+are at least as statistically significant as the observed data, an empirical
+p-value can be calculated as:
+
+p = (C + 1) / (B + 1)
+
+This prevents a permutation test from reporting an
+impossible p-value of exactly zero. [8]
+
+The minimum possible p-value therefore depends on the number of
+permutations.
+
+For example:
+
+999 permutations
+→ minimum p = 0.001
+
+9999 permutations
+→ minimum p = 0.0001
+
+### 21) Type I and Type II errors
+
+A Type I error occurs when a null hypothesis is rejected even though
+it is true.
+
+A Type II error occurs when a genuine effect exists but the test fails
+to detect it.
+
+### 22) Statistical power
+
+Power is the probability of detecting an effect when the true effect of a particular size exists. 
+
+Power generally increases with:
+
+- larger true effects
+- more independent subjects
+- lower variability
+
+After data collection, confidence intervals around the effect are more
+informative than "observed power" calculations.
+
+
+### 23) Multiple comparisons
+
+Testing many hypotheses creates opportunities for false
+positive findings.
+
+For example, separately testing:
+
+- multiple model comparisons
+- 109 individual subjects
+- many channels
+- many frequency bands
+
+can greatly increase the probability of at least one false positive.
+
+Therefore multiple-testing correction must be considered whenever
+several related hypotheses are evaluated.
+
+
+### 24) Holm correction
+
+Holm's sequential procedure controls the family-wise error rate. [9]
+
+Family-wise error rate refers to the probability of making at least
+one false rejection within a defined family of hypotheses.
+
+Holm correction is useful when there are a small number comparisons. It is a lot less conversative than the typical Bonferroni correction.
+
+For Week 8, if the two main comparisons are:
+
+Week 5 vs Week 6
+Week 6 vs Week 7
+
+Holm correction across these two tests is a reasonable
+choice.
+
+
+### 25) False discovery rate
+
+False discovery rate asks, among all results i call significant, what fraction do i expect to be false.
+
+FDR methods are useful for larger exploratory families, such as
+testing significance separately across many subjects, channels, or
+features.
+
+They are usually less conservative than family-wise error control.
+
+### 26) Cross-validation dependence
+
+Cross-validation fold scores are not independent observations.
+
+In LOSO:
+
+Fold 1:
+train Subjects 2–109
+
+Fold 2:
+train Subjects 1,3–109
+
+These training datasets overlap heavily.
+
+Therefore standard errors computed simply from variation across CV
+folds can substantially underestimate uncertainty. [1,2]
+
+Outer subject scores are useful for studying variability across
+held-out subjects, but they are not completely
+independent model-training experiments.
+
+#### What corrections should we use?
+
+Holm correction across the difference comparisons of: 
+
+Week 5 vs Week 6 
+Week 6 vs Week 7
+
+Benjamini-Hochberg FDR when we test significance for all 109 subjects. 
+
+
+### 27) Interpretation of subject-level bootstrap intervals
+
+Bootstrapping the 109 already-computed outer test scores measures variability across held-out subjects.
+
+It does not fully capture uncertainty caused by drawing a new training
+population and retraining the algorithm.
+
+A complete bootstrap of the learning procedure would require resampling of subjects, retraining of CSP/LDA and retesting.
+
+Therefore Week 8 should only focus on whether the BA changes as the subjects get replaced. Creating so-called subject-level
+bootstrap confidence intervals for cohort performance.
+
+### 28) Robust descriptive statistics
+
+Because EEG decoding performance varies strongly across subjects,
+cohort results should include more than the mean.
+
+Useful descriptive statistics include:
+
+- mean
+- median
+- interquartile range (the range between 25th and 75th percentile)
+- minimum and maximum
+- bootstrap confidence interval
+
+The median and IQR are less sensitive to extreme subject scores than
+the mean.
+
+
+### 29) Robustness and sensitivity analysis
+
+Robustness analysis asks whether the main conclusion persists under
+reasonable alternative analyses.
+
+Relevant NeuroSignalLab analysis include:
+
+- Do predefined irregular recordings materially change the result?
+- Are conclusions driven by a small number of subjects?
+- Do mean and median results tell a consistent story?
+- Do known sampling or annotation irregularities distort the comparison?
+
+Subjects should not be excluded simply because their classification
+performance is poor or unusual.
+
+Exclusion should be based on predefined technical or data-quality
+criteria.
+
+
+### 30) Sensitivity analyses
+
+A sensitivity analysis can compare:
+
+a primary analysis with all subjects
+
+against
+
+a secondary analysis that
+exclude only subjects meeting predefined technical irregularity
+criteria
+
+If the conclusion remains similar, the result is more robust.
+
+Any exclusions and the reason for them must be reported explicitly.
+
+
+### 31) Planned Week 8 analyses
+
+The Week 8 statistical notebook should focus on three main questions.
+
+#### A) Performance uncertainty
+
+For Weeks 5, 6, and 7:
+
+- mean balanced accuracy
+- median
+- IQR
+- subject-level bootstrap 95% CI
+
+#### B) Cost of cross-subject generalization
+
+Compare Week 5 vs Week 6 using paired subject results.
+
+Report:
+
+- mean paired difference
+- median paired difference
+- paired bootstrap CI
+- paired permutation p-value
+
+#### C) Effect of nested tuning
+
+Compare Week 6 vs Week 7.
+
+Report:
+
+- mean paired difference
+- median paired difference
+- paired bootstrap CI
+- paired permutation p-value
+
+If both comparisons are treated as one inferential family, apply Holm
+correction to the two p-values.
+
+
+#### D) Chance-level analysis
+
+Chance-level inference should be considered separately from
+model-comparison inference.
+
+Chance-level testing asks:
+
+Is there evidence that the EEG contains information about the class
+labels beyond what would be expected under no EEG-label relationship?
+
+A classifier-level label-permutation test is the stronger direct test
+of this question. THis could be done for the Week 6 pipeline, but not the large Week 7 nested analysis. 
+
+
+### 32) Interpretation principles
+
+Week 8 should report:
+
+effect magnitude
++
+uncertainty
++
+statistical evidence
+
+A p-value should never replace effect size.
+
+A confidence interval should never be interpreted as proof.
+
+A statistically significant one-percentage-point improvement may still
+be practically small.
+
+A numerically above-chance score is not automatically statistically
+above chance.
+
+The goal is not to obtain p < 0.05.
+
+The goal is to determine how strongly the existing results are
+supported and how uncertain they remain.
+
+
+## References
+
+[1] Varoquaux G, Raamana PR, Engemann DA, Hoyos-Idrobo A,
+Schwartz Y, Thirion B.
+Assessing and tuning brain decoders: Cross-validation, caveats, and
+guidelines.
+NeuroImage. 2017;145(Pt B):166–179.
+doi:10.1016/j.neuroimage.2016.10.038.
+
+[2] Varoquaux G.
+Cross-validation failure: Small sample sizes lead to large error bars.
+NeuroImage. 2018;180(Pt A):68–77.
+doi:10.1016/j.neuroimage.2017.06.061.
+
+[3] SciPy developers.
+scipy.stats.bootstrap documentation.
+SciPy Reference Guide.
+
+[4] SciPy developers.
+scipy.stats.permutation_test documentation.
+Section on paired permutation tests (`permutation_type="samples"`).
+SciPy Reference Guide.
+
+[5] SciPy developers.
+scipy.stats.wilcoxon documentation.
+SciPy Reference Guide.
+
+[6] Combrisson E, Jerbi K.
+Exceeding chance level by chance: The caveat of theoretical chance
+levels in brain signal classification and statistical assessment of
+decoding accuracy.
+Journal of Neuroscience Methods. 2015;250:126–136.
+doi:10.1016/j.jneumeth.2015.01.010.
+
+[7] Ojala M, Garriga GC.
+Permutation Tests for Studying Classifier Performance.
+Journal of Machine Learning Research.
+2010;11:1833–1863.
+
+[8] scikit-learn developers.
+permutation_test_score documentation.
+scikit-learn.
+
+[9] Holm S.
+A Simple Sequentially Rejective Multiple Test Procedure.
+Scandinavian Journal of Statistics.
+1979;6(2):65–70.
+
+[10] Benjamini Y, Hochberg Y.
+Controlling the False Discovery Rate: A Practical and Powerful
+Approach to Multiple Testing.
+Journal of the Royal Statistical Society: Series B.
+1995;57(1):289–300.
+doi:10.1111/j.2517-6161.1995.tb02031.x.

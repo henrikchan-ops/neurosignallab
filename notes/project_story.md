@@ -842,7 +842,35 @@ For week 7, the model settings can be selected automatically, but it did not yie
 
 It suggests that model selection can extract a bit more performance, but that the tunin alone does not solve the cross-subject generalization problem. 
 
-## Week 8
+## Week 8 Reflections — Statistical Validation and Robustness
+
+Week 8 changed the way I interpreted model performance. A model can score above 0.50 without that automatically meaning that it contains statistically convincing information, and a method can have a higher mean score without providing convincing evidence of a systematic improvement.
+
+One of the most important lessons was that the statistical unit must match the scientific question. Because the project is ultimately interested in generalization across people, subjects were treated as the primary units of inference. Subject-level bootstrapping therefore quantified uncertainty in cohort performance, while paired bootstrapping preserved the within-subject relationship when comparing methods.
+
+The paired analyses also clarified the effect and statistical evidence. The transition from within-subject to cross-subject decoding reduced balanced accuracy by approximately 3.2 percentage points, with a confidence interval that remained below zero and a paired permutation p-value of 0.0044. This provided convincing evidence that subject-independent decoding is meaningfully harder than subject-dependent decoding.
+
+In contrast, nested CSP hyperparameter tuning increased mean cross-subject balanced accuracy by only about one percentage point. Its confidence interval crossed zero and the paired permutation p-value was 0.1582. Keep in mind that a numerically higher score does not automatically imply that the more complex procedure is better. 
+
+The classifier-level permutation analysis addressed whether the fixed cross-subject decoder was exploiting genuine EEG-label structure at all. After left/right labels were shuffled within subject/run blocks, mean decoding performance collapsed to 0.5001, approximately chance, while the real-label model achieved 0.5654. None of the 109 permutation scores equaled or exceeded the observed result, producing a Monte Carlo permutation p-value of 0.0091. This showed that the performance contains statistically detectable motor-imagery information.
+
+Implementing the classifier-level permutation test also highlighted the computational cost of statistical validation. A single permutation required a complete 109-fold LOSO evaluation, so the full analysis involved thousands of CSP + LDA fits. Replacing the single permutation call with a checkpointed, resumable and divided code made the computation manageable and put importance on designing analyses around computational constraints.
+
+The robustness analysis showed that the main conclusions were not driven by the six subjects previously flagged for technical irregularities. Excluding their held-out scores changed the main cohort statistics only slightly. The largest within-to-cross-subject performance drops were also observed, suggesting that poor transfer is a broader inter-subject generalization.
+
+A particularly important observation was that some subjects were extremely easy to decode within-subject but transferred poorly to population-trained models.  
+
+The main methodological lesson from Week 8 is that model evaluation should separate three questions:
+
+1. How large is the observed effect?
+2. How uncertain is that estimate?
+3. How surprising is the result under an appropriate null hypothesis?
+
+Balanced accuracy, confidence intervals, and permutation tests answer different parts of this problem.
+
+The classical phase can now be considered frozen. CSP + LDA provides a benchmark. The next deep-learning phase should test whether learned representations can improve subject-independent generalization while being evaluated under the same standards established here.
+
+## Week 9
 
 **What did I build this week?**
 
