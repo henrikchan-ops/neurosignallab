@@ -225,3 +225,4 @@ data/external/
 *.edf
 
 data/processed/*.npy
+data/processed/*.npy
