@@ -2721,3 +2721,1555 @@ Approach to Multiple Testing.
 Journal of the Royal Statistical Society: Series B.
 1995;57(1):289–300.
 doi:10.1111/j.2517-6161.1995.tb02031.x.
+
+## Week 9 — PyTorch and Deep-Learning Foundations for EEG
+
+### 1) Objective
+
+Week 9 establishes a PyTorch pipeline for motor-imagery EEG decoding.
+
+The objective is **not yet to optimize neural-network performance** or beat the classical CSP + LDA benchmark.
+
+The objective is to understand and validate the complete deep-learning workflow before introducing more specialized architectures such as EEGNet.
+
+The frozen motor-imagery dataset contains:
+
+- 4,898 EEG epochs
+- 64 EEG channels
+- 481 time samples per epoch
+- sampling frequency = 160 Hz
+- binary classes:
+  - `0 = left`
+  - `1 = right`
+
+The complete EEG array therefore has shape:
+
+$$
+X \in \mathbb{R}^{4898 \times 64 \times 481}
+$$
+
+The fundamental Week 9 pipeline is:
+
+**EEG → subject split → Dataset → DataLoader → batch → forward pass → logits → loss → backpropagation → optimizer → validation → balanced accuracy**
+
+
+The week is successful when every part of this pipeline is understood and verified.
+
+---
+
+### 2) From Classical Machine Learning to Deep Learning
+
+The classical pipeline used in Weeks 5–8 was approximately:
+
+**EEG → CSP → log power → LDA → class**
+
+CSP explicitly defines the type of representation extracted from EEG with CSP components with weighted combinations of electrodes. It learns supervised spatial filters, after which the logarithm of component power is used as input to a linear classifier.
+
+A convolutional neural network (CNN) instead learns what filters are useful, which features are useful, how they should be combined and how they map left adn right:
+
+**EEG → learned filters → learned intermediate representations → classifier**
+
+Deep learning therefore reduces the amount of manually specified feature engineering. Because it creates its own classifier from learned logic. 
+
+However, deep learning does **not** remove assumptions.
+
+Assumptions remain encoded in:
+
+- preprocessing
+- architecture
+- convolution direction
+- kernel size
+- pooling
+- loss function
+- optimization procedure
+- train/validation splitting
+- evaluation design
+
+EEG-specific convolutional networks have successfully been used for end-to-end EEG decoding [8,9].
+
+---
+
+### 3) Tensors
+
+A tensor is a multidimensional numerical array used by PyTorch.
+
+It is similar to a NumPy array but additionally supports features required for deep learning, including:
+
+- automatic differentiation
+- computational graphs
+- CPU/GPU/MPS placement
+- integration with neural-network layers
+
+Important tensor properties include:
+
+- `shape`
+- `dtype`
+- `device`
+- `requires_grad`
+
+For NeuroSignalLab, the basic EEG representation is:
+
+$$
+(N, C, T)
+$$
+
+where:
+
+- $N$ = number of trials
+- $C$ = EEG channels
+- $T$ = temporal samples
+
+Therefore:
+
+```text
+X.shape = (4898, 64, 481)
+```
+
+One EEG epoch has:
+
+```text
+X[i].shape = (64, 481)
+```
+
+A batch containing 32 epochs has:
+
+```text
+X_batch.shape = (32, 64, 481)
+```
+
+The first dimension of a neural-network input is normally the **batch dimension**.
+
+Neural-network layers interpret each dimension differently.
+
+---
+
+### 4) NumPy Arrays vs PyTorch Tensors
+
+The current preprocessing produces NumPy arrays.
+
+PyTorch models operate on `torch.Tensor` objects: 
+
+**NumPy array → PyTorch tensor → neural network**
+
+The numerical values may initially be identical, but PyTorch tensors can participate in automatic differentiation and can be moved between computational devices.
+
+### 5) Data Types
+
+The EEG input should normally use:
+
+```text
+torch.float32
+```
+
+The class labels should use:
+
+```text
+torch.int64
+```
+
+which PyTorch commonly refers to as:
+
+```text
+torch.long
+```
+
+Therefore:
+
+- `X` → `float32`
+- `y` → `int64`
+
+Using `float32` approximately halves memory consumption compared with `float64`.
+
+This is also important for hardware acceleration. PyTorch's MPS backend does not support `float64` tensors [6].
+
+---
+
+### 6) EEG Amplitude Scaling
+
+MNE represents EEG amplitude in volts.
+
+Therefore typical EEG values may look numerically small:
+
+$$
+0.000020\ V
+$$
+
+which is equivalent to:
+
+$$
+20\ \mu V
+$$
+
+A simple scaling strategy is therefore:
+
+$$
+X_{\mu V}=10^6X_V
+$$
+
+This converts volts to microvolts.
+
+Importantly, this is a **fixed physical-unit transformation** and cannot introduce train-validation leakage.
+
+A later alternative would be standardization:
+
+$$
+z=\frac{x-\mu}{\sigma}
+$$
+
+However, if standardization is used, the mean and standard deviation must be estimated from **training data only**:
+
+$$
+\mu=\mu_{train}
+$$
+
+$$
+\sigma=\sigma_{train}
+$$
+
+Those same training-derived parameters must then be applied unchanged to validation and test data.
+
+
+### 7) Subject-Disjoint Splitting
+
+The scientific target remains generalization to unseen people.
+
+Trials must therefore **not** be randomly split across training and validation if doing so allows the same subject to appear in both sets.
+
+Training and validation must therefore be split by **subject identity**.
+
+This follows the same principle used in the classical LOSO experiments: the evaluation partition must match the population to which the model is intended to generalize [10].
+
+---
+
+### 8) Dataset and DataLoader
+
+PyTorch separates individual data access from batch iteration [1].
+
+#### Dataset
+
+A `Dataset` defines how to retrieve an individual sample.
+
+Conceptually:
+
+`Dataset[i]`
+
+returns:
+
+- EEG epoch
+- corresponding label
+
+For NeuroSignalLab:
+
+$$
+X_i.shape=(64,481)
+$$
+
+and:
+
+$$
+y_i\in\{0,1\}
+$$
+
+#### DataLoader
+
+A `DataLoader` retrieves samples from the Dataset and groups them into batches:
+
+4898 examples
+      ↓
+Dataset
+      ↓
+DataLoader
+      ↓
+Batch 1
+Batch 2
+Batch 3
+...
+
+With:
+
+`batch_size = 32`
+
+one batch has approximately:
+
+$$
+X_{batch}.shape=(32,64,481)
+$$
+
+and:
+
+$$
+y_{batch}.shape=(32,)
+$$
+
+The models predictions are made from 32 examples, which allows wrong prediction to be penalized much more often than if all 4000 trials were to be used. 
+
+Training data should normally use:
+
+`shuffle=True`
+
+so that the order of training examples changes between epochs.
+
+Validation data normally use:
+
+`shuffle=False`
+
+because shuffling is unnecessary for evaluation.
+
+For initial notebook development, using:
+
+`num_workers=0`
+
+is preferable because it avoids unnecessary multiprocessing complexity and memory overhead.
+
+---
+
+### 9) Mini-Batch Training
+
+Neural networks are usually trained using mini-batches rather than processing the entire dataset simultaneously.
+
+Suppose:
+
+$$
+batch\ size=32
+$$
+
+Then one optimization step processes:
+
+$$
+X_b \in \mathbb{R}^{32\times64\times481}
+$$
+
+The model then:
+
+1. performs predictions for those 32 epochs
+2. calculates a batch loss
+3. calculates gradients
+4. updates its parameters
+
+The next batch is then processed.
+
+Mini-batch training provides a compromise between:
+
+- memory requirements
+- computational efficiency
+- gradient stability
+- frequency of parameter updates
+
+A batch size such as 32 is a practical starting point rather than a scientifically meaningful constant.
+
+---
+
+### 10) Batch, Optimization Step, and Epoch
+
+#### Batch
+
+One group of examples processed together.
+
+Example:
+
+$$
+32\ EEG\ epochs
+$$
+
+#### Optimization step
+
+One update of the neural-network parameters.
+
+Typically:
+
+**one batch → one optimization step**
+
+#### Epoch
+
+One complete traversal of the training dataset.
+
+Suppose the training set contains 3,840 epochs and:
+
+$$
+batch\ size=32
+$$
+
+Then one epoch contains approximately:
+
+$$
+3840/32=120
+$$
+
+optimization steps.
+
+If training lasts 20 epochs:
+
+$$
+20\times120=2400
+$$
+
+parameter updates occur.
+
+---
+
+### 11)  `nn.Module`
+
+PyTorch neural networks are normally subclasses of:
+
+`torch.nn.Module`
+
+A model generally contains two important components [5].
+
+#### `__init__()`
+
+Defines which layers exist.
+
+For example:
+
+- convolution
+- activation
+- pooling
+- classifier
+
+#### `forward()`
+
+Defines how an input tensor moves through those layers. What computation should happen to an input
+
+Conceptually:
+
+\[
+x
+\rightarrow
+layer_1
+\rightarrow
+layer_2
+\rightarrow
+layer_3
+\rightarrow
+output
+\]
+
+Submodules assigned within an `nn.Module` are registered automatically.
+
+This allows PyTorch to:
+
+- identify trainable parameters
+- move the complete model to a device
+- save model state
+- pass parameters to an optimizer
+
+
+### 12) Convolution
+
+A convolution learns local patterns in the input.
+
+For a `Conv1d` layer, PyTorch conventionally interprets the input as:
+
+$$
+(batch,\ channels,\ length)
+$$
+
+For the current EEG:
+
+$$
+(B,64,481)
+$$
+
+Therefore:
+
+- `64` = EEG input channels
+- `481` = temporal dimension
+
+The convolution kernel moves along the temporal axis.
+
+The learned filter detects local temporal structures such as:
+
+- oscillatory fragments
+- waveform changes
+- transient patterns
+- combinations of electrode activity across short temporal windows
+
+An ordinary `Conv1d` filter can combine information from all input EEG channels + learning temporal features into a smaller learned feature map.
+
+#### Convolution Output Channels
+
+Suppose the input is:
+
+$$
+(B,64,481)
+$$
+
+and the first convolution uses:
+
+`out_channels = 16`
+
+Then its output may be:
+
+$$
+(B,16,481)
+$$
+
+The original 64 EEG channels have now been transformed into 16 learned feature maps.
+
+Each feature map corresponds to one learned filter response.
+
+The network therefore gradually moves from electrodes to learned representations 
+
+### 13) Kernel Size and Temporal Receptive Field
+
+Kernel size determines how many time samples a convolution examines at once.
+
+For example:
+
+`kernel_size = 15`
+
+At:
+
+$$
+f_s=160\ Hz
+$$
+
+the temporal window is approximately:
+
+$$
+15/160=0.09375\ s
+$$
+
+or approximately:
+
+$$
+94\ ms
+$$
+
+The receptive field describes how much of the original signal can influence a particular later representation. If you output 16 feature maps, the effective receptive field becomes much larger than the original kernel size. 
+
+### 14) Nonlinear Activation Functions
+
+Consider two purely linear transformations:
+
+$$
+f(x)=W_2(W_1x)
+$$
+
+This can be rewritten as:
+
+$$
+f(x)=(W_2W_1)x
+$$
+
+which is still a linear transformation.
+
+Introducing nonlinear activations allows neural networks to represent nonlinear relationships between EEG signals and labels.
+
+A common nonlinear activation is ReLU:
+
+$$
+ReLU(x)=\max(0,x)
+$$
+
+A common pattern is therefore:
+
+convolution
+→ activation
+→ convolution
+→ activation
+
+### 15) Pooling
+
+Pooling reduces the resolution of a representation.
+
+For example:
+
+$$
+(B,16,481)
+$$
+
+might become:
+
+$$
+(B,16,120)
+$$
+
+after temporal pooling.
+
+Pooling can:
+
+- reduce computational cost
+- reduce memory use
+- enlarge effective receptive fields
+- summarize nearby activations
+- reduce sensitivity to small temporal shifts
+
+A simple CNN commonly alternates convolution, nonlinear activation, and pooling.
+
+---
+
+### 16) EEGNet
+
+EEGNet is a compact convolutional architecture specifically designed for EEG-based brain-computer interfaces [8].
+
+Its architecture incorporates operations related to common EEG feature-extraction ideas, including:
+
+- temporal convolution
+- depthwise spatial convolution
+- separable convolution
+
+Conceptually:
+
+EEG
+↓
+learn temporal filters
+↓
+learn spatial/electrode combinations
+↓
+combine learned features efficiently
+↓
+classification
+
+EEGNet commonly represents EEG with an extra feature-map dimension:
+
+$$
+(B,1,C,T)
+$$
+
+For NeuroSignalLab:
+
+$$
+(B,1,64,481)
+$$
+
+This differs from the simpler `Conv1d` representation:
+
+$$
+(B,64,481)
+$$
+
+The additional dimension allows 2D convolutional operations to treat the channel and temporal dimensions differently.
+
+EEGNet should only be introduced after the basic PyTorch training pipeline has been validated.
+
+---
+
+### 17) Forward Pass
+
+A forward pass sends an input through the neural network.
+
+Suppose:
+
+$$ X_{batch}.shape=(32,64,481) $$
+
+The forward pass is simply:
+
+$$ X\rightarrow model(X)\rightarrow logits $$
+
+For binary classification using two output units:
+
+$$
+(B,64,481)
+\rightarrow
+model
+\rightarrow
+(B,2)
+$$
+
+Each trial therefore receives two output values.
+
+Example:
+
+`Trial 1 → [1.3, -0.2]`
+
+`Trial 2 → [-0.5, 0.9]`
+
+These values are called **logits**.
+
+---
+
+#### Logits
+
+Logits are raw, unnormalized class scores.
+
+They:
+
+- can be positive
+- can be negative
+- do not need to sum to 1
+- are not probabilities
+
+For two classes:
+
+$$
+z=(z_0,z_1)
+$$
+
+The predicted class is:
+
+$$
+\hat y=\arg\max_c z_c
+$$
+
+For example:
+
+$$
+[1.3,-0.2]
+$$
+
+predicts class `0`, because of 1.3 value in z_0.
+
+$$
+[-0.5,0.9]
+$$
+
+predicts class `1` because 0.9 value in z_1.
+
+#### Cross Entropy Loss
+
+Cross Entropy loss is a class-index that uses each integer to tell if the output logit correcsponds with the correct class. 
+
+If 0 is left and 1 is right, if y = [0,1,1,1], that means trial 1 = 0, trial 2 = 1, trial3 = 1 and trial 4 = 1
+
+
+For `CrossEntropyLoss`, class-index targets should contain integer values in:
+
+$$
+0,\ldots,K-1
+$$
+
+Becuase if classes(K) = 2, that maens there are two ouput logits, 0 and 1. which is directly compatible with `CrossEntropyLoss` [3].
+
+##### What does CrossEntroypyLoss do with the label?
+
+For two classes, a model returns two logits after weighing and transforming the raw batches of epochs. It gives two values for what each of the two true logits it could be for the given trial. 
+
+Say one trial was class 1. The logit given was 0.5. The calculated loss = -log(0.5) = 0.3. 
+
+Cross entropy can then penalize the model for wrong output by giving a low score, which later functions (loss.backward() and optimizer.step()) can utilize to better the model.
+
+### 18) Softmax
+
+Softmax converts logits into probabilities:
+
+$$
+p_i=
+\frac{e^{z_i}}
+{\sum_j e^{z_j}}
+$$
+
+The resulting values:
+
+- lie between 0 and 1
+- sum to 1
+
+However, softmax should **not normally be applied manually before `CrossEntropyLoss`**.
+
+PyTorch's `CrossEntropyLoss` is designed to receive raw logits and internally performs the appropriate log-softmax-related calculation [3].
+
+Therefore:
+
+`model → logits → CrossEntropyLoss`
+
+is correct.
+
+Not:
+
+`model → softmax → CrossEntropyLoss`
+
+
+### 19) Loss Function vs Evaluation Metric
+
+The training loss and evaluation metric serve different purposes.
+
+For Week 9 CrossEntropyLoss is used for traning. 
+
+Its differentiable and suitable for gradient-based optimization.
+
+Balanced accuracy remains the primary performance metric so that neural-network results remain directly comparable with the classical benchmark.
+
+
+CrossEntropyLoss answers how the weights should be changed.
+
+Balanced accuracy itself is not suitable as the direct gradient-based optimization objective.
+
+---
+
+### 20) Gradient
+
+Suppose the model contains parameter \(w\) and loss L. 
+
+$$
+\frac{\partial L}{\partial w}
+$$
+
+describes how the loss changes if the weight, w, changes slightly.
+
+If:
+
+$$
+\frac{\partial L}{\partial w}>0
+$$
+
+then increasing w increases the loss locally.
+
+We want to reduce loss, and therefore move w in the opposite direction. TO create a descending gradient we use: 
+
+$$
+w_{new}
+=
+w_{old}
+-
+\eta
+\frac{\partial L}{\partial w}
+$$
+
+where:
+
+$$
+\eta
+$$
+
+is the learning rate.
+
+Its called a gradient because the its a partial derivation with resepct to many variables.
+
+#### Example
+
+L(w) = w^2 
+
+dL/dw = 2w
+
+if w = 3
+
+dL/dw = 6
+
+With w = 3, the loss is increased
+
+We want the new w to go in the opposite direction to reduce loss: 
+
+w_new = w_old - eta*(dL/dw)
+
+So in neural networks there are millions of parameters each scaled by their learning rate. 
+
+Each number tells us how much it affects loss. 
+
+### 21) Backpropagation
+
+A neural network is a sequence of mathematical operations with with millions os parameters:
+
+In an example with three operations: 
+
+x→f1​→f2​→f3​→L
+
+Imagine if x changes f1, and f1 chagnges f2, etc, it would be incredibly inefficient to calculate f1, then f2, then f3, etc for each change. Backpropogation starts at a loss and calculates how each parameter affected the final loss. 
+
+For instance, each partial here could be a parameter: 
+
+$$
+\frac{\partial L}{\partial w}
+=
+\frac{\partial L}{\partial f_3}
+\frac{\partial f_3}{\partial f_2}
+\frac{\partial f_2}{\partial f_1}
+\frac{\partial f_1}{\partial w}
+$$
+
+Backpropogation is an algorithm used to calculate gradients throughout the network. 
+
+#### Automatic Differentiation
+
+PyTorch's `autograd` system automatically tracks operations performed on tensors involved in gradient computation [2].
+
+During the forward pass, PyTorch constructs a computational graph.
+
+Calling:
+
+`loss.backward()`
+
+traverses this graph backward and calculates gradients using the chain rule.
+
+That is because each derivative is nested, and therefore the chain rule is necessary to find the earlier weights in the gradient. 
+
+Afterward, trainable parameters contain gradients accessible through:
+
+`parameter.grad`
+
+### 22) The Core Training Step
+
+A standard PyTorch training step contains:
+
+`optimizer.zero_grad()`
+
+`logits = model(X_batch)`
+
+`loss = criterion(logits, y_batch)`
+
+`loss.backward()`
+
+`optimizer.step()`
+
+Each line has a distinct purpose.
+
+#### `optimizer.zero_grad()`
+
+PyTorch gradients accumulate by default using forwardpass. Gradients are basically how the weight affect the loss, and with each computation the weight changes, and therefore the gradient changes. 
+
+Without resetting them to zero, it accumulates.
+
+Therefore previous gradients normally need to be cleared before computing the next batch gradient [4].
+
+#### `model(X_batch)`
+
+Moves the operations forward. This is the forward pass that build a computational graph. Each node in the graph has functions and tensors (edges) that pass through the functions. These functions reate layers that all affect the loss.
+
+#### `criterion(logits, y_batch)`
+
+Calculates the loss from all the logits accumulated from the inputted batches in each node. 
+
+#### `loss.backward()`
+
+Calculates gradients for trainable parameters: 
+
+$$
+\frac{\partial L}{\partial w}
+$$
+
+It scans the operations loss, uses the chain rule to calculate the gradient and moves to the preceding layer. It stops when it reaches the earliest weight. 
+
+#### `optimizer.step()`
+
+Uses those gradients to modify the model parameters.
+
+
+### 23) Adam Optimizer (Adaptive Moment Estimation)
+
+Adam keeps track of: 
+- The mean of recent gradients
+- THe mean of recent squared gradients
+
+Recent, in this case, means the most recent pass of loss.backward() and the preceding passes of loss.backward(). Old gradients created by early passes of loss.backward() are forgotten. 
+
+If the mean of recent gradients is positive for a weight, it means loss is increasing. Therefore that weight will be moved in negative direction through changing the laerning rate -> This is called the **momentum**
+
+Then using the mean fo the squared recent gradients, it tells us how much big the increase/decrease should be. If the square is extremely large, that means the gradient is fluctuating a lot and creates no meaningful direction. The Adam function then proceeds to scale down the learning rate, which changes the weight slightly. For a small mean, the opposite applies. 
+
+These quantities allow the optimizer to adapt update magnitudes across parameters.
+
+Adam is a practical Week 9 starting optimizer.
+
+### 24) Learning Rate
+
+The learning rate:
+
+$$
+\eta
+$$
+
+controls the size of optimization updates.
+
+#### Too large
+
+Possible consequences:
+
+- unstable training
+- oscillating loss
+- divergence
+- overshooting useful parameter regions
+
+#### Too small
+
+Possible consequences:
+
+- extremely slow training
+- almost unchanged loss
+- inefficient optimization
+
+Week 9 should begin with one sensible learning rate rather than perform a large hyperparameter sweep.
+
+---
+
+### 25) Modes of the network
+
+#### `model.train()`
+
+Calling:
+
+`model.train()`
+
+places the model into training mode. Particularly using these to ensure good traning: 
+
+- Dropout -> can turn off random nodes
+- BatchNorm -> calculates mean and variance -> normalize the batches so that the mean is close to 0 and deviation is 1
+
+It simply changes the operational mode of relevant layers [5].
+
+---
+
+#### `model.eval()`
+
+Calling:
+
+`model.eval()`
+
+places the network into evaluation mode.
+
+- Dropout -> turned off
+- BatchNorm -> locked normalization to the historical mean of the trained model.
+
+Evaluation mode and gradient tracking are separate concepts [2,5].
+
+#### `torch.no_grad()`
+
+During validation, gradients are unnecessary.
+
+Gradents tell the model how to change, but during validation we just want it to predict. 
+
+Therefore validation should use a no-gradient context:
+
+`with torch.no_grad():`
+
+This prevents PyTorch from constructing the gradient graph for those operations [2,7].
+
+Benefits include:
+
+- reduced memory use
+- reduced computational overhead
+
+Therefore validation generally uses both:
+
+`model.eval()`
+
+and:
+
+`torch.no_grad()`
+
+They serve different purposes:
+
+`model.eval()`
+
+→ changes behavior of training-dependent layers
+
+`torch.no_grad()`
+
+→ disables gradient recording
+
+---
+
+### 26) Complete Training Loop
+
+One training epoch is:
+
+1. call `model.train()`
+2. iterate through training batches
+3. move the batch to the selected device (cpu or GPU)
+4. clear previous gradients
+5. perform the forward pass
+6. calculate cross-entropy loss
+7. perform backpropagation
+8. update parameters
+9. store losses and predictions
+
+Then validation is performed:
+
+1. call `model.eval()`
+2. disable gradients
+3. iterate through validation batches
+4. perform forward passes
+5. calculate validation loss
+6. store predictions
+7. calculate validation metrics
+8. perform **no optimizer updates**
+
+---
+
+### 27) Balanced Accuracy Across an Epoch
+
+Balanced accuracy should preferably be calculated from all predictions collected across the complete epoch.
+
+For validation:
+
+1. collect every true label
+2. collect every predicted label
+3. concatenate them
+4. calculate balanced accuracy once
+
+$$
+BA=
+BalancedAccuracy
+(
+y_{all},
+\hat y_{all}
+)
+$$
+
+It is preferable to calculating separate balanced accuracies for each mini-batch and averaging them because different batches may contain different class distributions.
+
+### 28) Averaging Loss Correctly
+
+Suppose most batches contain 32 examples but the final batch contains only 13.
+
+A simple average of batch losses would give the 13-example batch the same weight as a 32-example batch.
+
+A sample-weighted epoch loss is:
+
+$$
+L_{epoch}
+=
+\frac{
+\sum_b L_bN_b
+}{
+\sum_bN_b
+}
+$$
+
+N is the batchsize and L is the losses. 
+
+This makes it so that each batch is weighted equally 
+
+### 29) Training vs Validation Performance
+
+Training performance answers:
+
+> How well can the model fit data used to estimate its parameters?
+
+Validation performance answers:
+
+> How well does the learned representation transfer to unseen subjects?
+
+For example:
+
+`Training BA = 0.95`
+
+`Validation BA = 0.54`
+
+does not indicate strong generalization.
+
+
+### 30) Underfitting
+
+Underfitting occurs when the model cannot adequately learn the training data.
+
+Typical pattern:
+
+- training loss remains high
+- validation loss remains high
+- training BA remains low
+- validation BA remains low
+
+Possible causes include:
+
+- insufficient model capacity
+- inappropriate learning rate
+- too little training
+- input scaling problems
+- implementation bugs
+
+---
+
+### 31) Overfitting
+
+Overfitting occurs when the model increasingly fits the training data without corresponding improvement on unseen data.
+
+Typical pattern:
+
+- training loss continues falling
+- training BA continues rising
+- validation loss stops improving or increases
+- validation BA stagnates or declines
+
+EEG decoding is particularly vulnerable to overfitting because datasets are relatively small and inter-subject variability can be substantial.
+
+---
+
+### 32) Learning Curves
+
+Training and validation metrics should be recorded for every epoch.
+
+Useful quantities include:
+
+- training loss
+- validation loss
+- training balanced accuracy
+- validation balanced accuracy
+
+Plots of these quantities against epoch number provide diagnostic information about:
+
+- successful learning
+- underfitting
+- overfitting
+- optimization instability
+- convergence
+
+Learning curves should therefore be interpreted as diagnostic tools rather than merely presentation figures.
+
+---
+
+### 33) Tiny-Batch Overfitting Test
+
+Before full training, the model should be tested on a deliberately tiny dataset.
+
+For example: 32 EEG trials
+
+The same small batch is presented repeatedly.
+
+A model with sufficient capacity should eventually almost memorize these trials.
+
+This test asks:
+
+> Can the implementation learn at all?
+
+If the model cannot substantially overfit 32 examples, possible problems include:
+
+- incorrect labels
+- incorrect tensor dimensions
+- incorrect loss usage
+- gradients not flowing
+- optimizer not updating
+- inappropriate learning rate
+- architecture errors
+
+The tiny-batch test is a check. 
+
+#### Why Intentional Overfitting Is Useful
+
+Normally, overfitting is undesirable.
+
+During the tiny-batch test, however, overfitting is deliberately requested.
+
+If a neural network cannot memorize an extremely small training set, expecting it to learn subtle EEG structure across thousands of trials is unreasonable.
+
+### 34) Validation Cannot Be Part of Model Selection
+
+Suppose a model obtains:
+
+`validation BA = 0.52`
+
+The architecture is changed.
+
+The new model obtains:
+
+`validation BA = 0.58`
+
+The validation subjects have now influenced the model-development decision.
+
+Therefore the validation set has participated in model selection.
+
+It can still be used for development, but it is no longer an untouched final test set.
+
+This mirrors the nested-cross-validation principles used in Weeks 6–8 [10].
+
+---
+
+### 35) Tensor Shape Throughout the Network
+
+Tensor dimensions should be explicitly tracked throughout the network.
+
+For example:
+
+$$
+(B,64,481)
+$$
+
+Input EEG.
+
+After a convolution:
+
+$$
+(B,16,481)
+$$
+
+After temporal pooling:
+
+$$
+(B,16,120)
+$$
+
+After another convolution:
+
+$$
+(B,32,120)
+$$
+
+After global/adaptive pooling:
+
+$$
+(B,32,1)
+$$
+
+After flattening:
+
+$$
+(B,32)
+$$
+
+After the final classifier:
+
+$$
+(B,2)
+$$
+
+The final dimension of size 2 corresponds to the two class logits.
+
+Being able to predict these shapes before running the model is an important debugging skill.
+
+### 36) Device Placement
+
+PyTorch tensors and models can run on different computational devices.
+
+Possible examples include:
+
+- CPU
+- CUDA GPU
+- Apple MPS
+
+A model and the tensors involved in its operations must be placed on compatible devices.
+
+For example:
+
+`model → MPS`
+
+and:
+
+`X_batch → CPU`
+
+will cause a device mismatch.
+
+The training loop should therefore consistently move:
+
+- the model
+- EEG batches
+- label batches
+
+to the selected device.
+
+PyTorch currently provides MPS support for GPU acceleration on compatible Apple hardware [6].
+
+---
+
+### 37) Reproducibility
+
+Deep-learning experiments contain randomness from several sources:
+
+- initial model weights
+- training-data order
+- subject splitting
+- random operations
+- some hardware/backend algorithms
+
+Random seeds should therefore be recorded.
+
+PyTorch provides:
+
+`torch.manual_seed()`
+
+for controlling its random-number generator [7].
+
+The experiment configuration should record:
+
+- random seed
+- PyTorch version
+- hardware/device
+- training subjects
+- validation subjects
+- model architecture
+- optimizer
+- learning rate
+- batch size
+- number of epochs
+- preprocessing/scaling strategy
+
+PyTorch also provides deterministic-algorithm controls.
+
+However, exact reproducibility across different PyTorch versions, hardware, and computational backends is not universally guaranteed, and deterministic algorithms can reduce performance [11].
+
+The practical goal is therefore strong reproducibility within a clearly recorded experimental environment.
+
+---
+
+### 38) Freezing Processed EEG Data
+
+The MNE preprocessing pipeline has already been established and validated.
+
+It should not be rerun unnecessarily for every deep-learning experiment.
+
+The pipeline should now become:
+
+$$
+raw\ EDF
+\rightarrow
+frozen\ MNE\ preprocessing
+\rightarrow
+saved\ processed\ arrays
+\rightarrow
+PyTorch
+$$
+
+The processed dataset should preserve:
+
+- EEG data `X`
+- class labels `y`
+- subject IDs
+- run IDs
+
+The arrays must remain aligned.
+
+Freezing processed data improves:
+
+- reproducibility
+- speed
+- memory management
+- consistency between experiments
+- protection against accidental preprocessing drift
+
+---
+
+### 39) Memory Mapping
+
+Large NumPy `.npy` arrays can optionally be loaded using memory mapping.
+
+A normal load conceptually performs:
+
+$$
+disk
+\rightarrow
+entire\ array\ in\ RAM
+$$
+
+A memory-mapped load instead allows the array to remain disk-backed while required portions are accessed when needed.
+
+This can reduce memory pressure when working with larger datasets.
+
+After converting the current EEG dataset from float64 to float32, full loading may already be manageable, but saving the arrays in `.npy` format preserves the option of memory-mapped access later.
+
+---
+
+### 40) Week 9 Rules
+
+The following rules should remain fixed throughout Week 9:
+
+1. Subjects must remain disjoint between training and validation.
+
+2. The frozen EEG preprocessing protocol should not be changed to improve neural-network performance.
+
+3. Any learned normalization must be fitted using training data only.
+
+4. Balanced accuracy remains the primary evaluation metric.
+
+5. Validation subjects are development data, not final test subjects.
+
+6. Hyperparameter searching should remain minimal.
+
+7. The first CNN is a pipeline sanity baseline, not a final architecture.
+
+8. EEGNet should only be introduced after the basic training pipeline is verified.
+
+9. Neural-network results should eventually be compared against the frozen classical benchmark using equally rigorous evaluation.
+
+---
+
+### 41) Week 9 Success Criteria
+
+Week 9 is complete when the following have been demonstrated:
+
+- processed EEG stored as reusable arrays
+- EEG represented as `float32`
+- labels represented correctly as integer class indices
+- subject-disjoint training and validation split
+- working PyTorch Dataset
+- working DataLoader
+- correct batch dimensions
+- model moved correctly to computational device
+- forward pass producing two logits per trial
+- `CrossEntropyLoss` used correctly
+- gradients calculated successfully
+- optimizer updates model parameters
+- tiny-batch memorization test succeeds
+- full training loop works
+- validation loop uses evaluation mode and no gradients
+- balanced accuracy calculated correctly
+- training and validation learning curves recorded
+- experiment configuration reproducibly documented
+
+The primary Week 9 goal is **correctness and understanding**, not maximum balanced accuracy.
+
+---
+
+### 42) Summary
+
+The central transformation from classical machine learning to deep learning is:
+
+$$
+hand\ designed\ feature\ representation
+\rightarrow
+learned\ representation
+$$
+
+However, a neural network is only scientifically useful when the surrounding experimental design remains correct.
+
+The key Week 9 principles are:
+
+- tensor dimensions must be explicit
+- subject leakage must be prevented
+- training and validation must remain conceptually separate
+- loss and evaluation metrics serve different purposes
+- backpropagation calculates gradients
+- the optimizer changes parameters
+- evaluation mode and gradient disabling are separate mechanisms
+- validation is already part of model selection
+- a tiny-batch overfit test validates the engineering pipeline
+- deep-learning performance should ultimately be judged under the same rigorous generalization standards as the classical baseline
+
+The objective is therefore not simply to make a CNN run.
+
+The objective is to build a neural-network experiment whose results can be trusted.
+
+---
+
+### References
+
+[1] PyTorch Developers.  
+**Datasets & DataLoaders.**  
+PyTorch Tutorials.  
+https://docs.pytorch.org/tutorials/beginner/basics/data_tutorial.html
+
+[2] PyTorch Developers.  
+**Autograd Mechanics.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/notes/autograd.html
+
+[3] PyTorch Developers.  
+**torch.nn.CrossEntropyLoss.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+
+[4] PyTorch Developers.  
+**Optimizing Model Parameters.**  
+PyTorch Tutorials.  
+https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
+
+[5] PyTorch Developers.  
+**torch.nn.Module.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html
+
+[6] PyTorch Developers.  
+**MPS Backend.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/notes/mps.html
+
+[7] PyTorch Developers.  
+**Random Number Generation and torch.manual_seed.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/random.html
+
+[8] Lawhern VD, Solon AJ, Waytowich NR, Gordon SM, Hung CP, Lance BJ.  
+**EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces.**  
+Journal of Neural Engineering. 2018;15(5):056013.  
+doi:10.1088/1741-2552/aace8c.
+
+[9] Schirrmeister RT, Springenberg JT, Fiederer LDJ, et al.  
+**Deep learning with convolutional neural networks for EEG decoding and visualization.**  
+Human Brain Mapping. 2017;38(11):5391–5420.  
+doi:10.1002/hbm.23730.
+
+[10] Varoquaux G, Raamana PR, Engemann DA, Hoyos-Idrobo A, Schwartz Y, Thirion B.  
+**Assessing and tuning brain decoders: Cross-validation, caveats, and guidelines.**  
+NeuroImage. 2017;145(Pt B):166–179.  
+doi:10.1016/j.neuroimage.2016.10.038.
+
+[11] PyTorch Developers.  
+**torch.use_deterministic_algorithms.**  
+PyTorch Documentation.  
+https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
