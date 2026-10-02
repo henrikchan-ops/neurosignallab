@@ -940,8 +940,138 @@ This creates a cleaner experiment: the main thing that changes is the model arch
 
 The next question is therefore whether an architecture that treats temporal and spatial EEG structure more deliberately can learn representations that transfer better across subjects than the generic 1D CNN.
 
+## Week 10 — EEGNet
 
-## Week 10
+### What did I build this week?
+
+This week I implemented EEGNet, an EEG-specific convolutional neural network, and
+used it to test whether a more structured architecture could generalize better
+across subjects than the CNN from Week 9.
+
+I built the architecture incrementally so I could understand every transformation.
+The initial input EEG was reshaped to `(B, 1, 64, 481)`, after which the model learned
+temporal filters, depthwise spatial filters across electrodes, and later
+depthwise and pointwise convolutions for temporal refinement and feature
+combination. Batch normalization, ELU activations, average pooling, dropout, and
+a final linear classifier completed the model.
+
+Before full training, I overfit EEGNet on one batch of 32 trials.
+With dropout removed for this diagnostic test, the network reached 100% accuracy
+and an evaluation loss of approximately 0.0001. This confirmed that the complete
+architecture, gradients, loss, and optimizer could learn correctly.
+
+For the real experiment, I returned to a fresh EEGNet with dropout enabled and
+trained it on 76 subjects and 3,423 trials. The 16 validation subjects contained
+718 trials, while the 17 test subjects remained untouched.
+
+Training balanced accuracy increased from 0.497 in epoch 1 to a maximum of
+0.655 at epoch 29. Training loss decreased from 0.7027 to 0.6128 by epoch 30.
+
+Validation balanced accuracy increased from 0.478 in epoch 1 to a maximum of
+0.615 at epoch 29. Validation loss reached its minimum of 0.6628 at epoch 18
+and increased to 0.7151 by epoch 30.
+
+### What did I learn technically?
+
+I learned how EEGNet separates temporal and spatial EEG processing instead of
+mixing both dimensions immediately.
+
+The first temporal convolution learns patterns across time samples
+while keeping electrodes separate. The following depthwise spatial convolution
+then learns how each temporal features are weighted across the 64
+electrodes.
+
+I also learned the distinction between temporal/spatial and
+depthwise/pointwise convolution. Temporal and spatial describe which dimension
+the convolution operates across, while depthwise and pointwise describe how
+feature maps are processed or combined.
+
+I learned how separable convolution can first refine each feature independently
+over time and then use a 1 × 1 pointwise convolution to combine those features.
+I also gained a clearer understanding of the roles of BatchNorm, ELU, average
+pooling, and dropout during training and evaluation.
+
+### What confused me?
+
+The most difficult concept was initially separating the different meanings of
+temporal, spatial, depthwise, and pointwise convolution.
+
+It was not immediately obvious that a convolution could be both spatial and
+depthwise at the same time. Tracing the tensor shapes through the network made
+this clearer: the temporal convolution changed only the number of temporal feature
+maps, whereas the spatial convolution
+collapsed the 64 electrodes into learned spatial representations.
+
+I also initially expected the tiny-batch test to reach very high accuracy with
+the normal EEGNet configuration. The first attempt only reached 75% evaluation
+accuracy. Removing dropout and using a larger learning rate for the diagnostic
+test showed that the architecture itself could easily memorize the batch. This
+helped separate a true implementation problem from the effects of optimization through dropout.
+
+### What decision did I make?
+
+I decided to retain EEGNet as the stronger deep-learning model for further
+development rather than continue working on the baseline CNN.
+
+The baseline CNN reached almost perfect training performance but only a best
+validation balanced accuracy of 0.528. EEGNet instead reached a best validation
+balanced accuracy of 0.615 while training balanced accuracy remained around
+0.65.
+
+The validation
+set remains the development set, and the test set should stay untouched until
+the model-development strategy is finalized.
+
+### What limitation did I notice?
+
+EEGNet improved validation performance substantially, but it did not eliminate
+the generalization problem.
+
+The best validation balanced accuracy was 0.615, so there is still considerable
+room for improvement. Validation loss also began increasing again after reaching
+its minimum around epoch 18, while training loss continued decreasing. This
+suggests that overfitting still begins to develop during later training.
+
+Another important limitation is that the improvement over the baseline CNN cannot
+be attributed purely to architecture. The EEGNet experiment also used BatchNorm,
+dropout, and a different learning rate. The correct conclusion is therefore that
+the EEGNet configuration generalized better under the current development
+setup.
+
+The result is also based on one fixed validation split. The maximum validation
+balanced accuracy was selected across multiple epochs, so it should not be
+treated as an unbiased final estimate of performance.
+
+### How does this connect to my larger goal?
+
+NeuroSignalLab is becoming less about simply training increasingly complex
+models and more about understanding which representations actually transfer
+between people.
+
+Week 9 showed that a flexible baseline CNN could nearly memorize the training
+subjects while failing on unseen subjects. Week 10 showed that imposing more
+EEG-specific structure produced a substantially healthier relationship between
+training and validation performance.
+
+This moves the project closer to the larger goal of understanding how neural
+signals can be modeled reliably rather than simply obtaining impressive-looking
+training metrics. Cross-subject generalization is particularly important if EEG
+models are ever expected to work on people who were not present during model
+development.
+
+### What is the next step?
+
+The next step is to move into Week 11 while keeping the 17 test subjects sealed.
+
+EEGNet now provides a substantially stronger deep-learning baseline. The next
+experiments should determine how robust this improvement is and whether targeted,
+controlled changes can improve cross-subject generalization further without
+returning to the severe overfitting seen with the baseline CNN.
+
+Any further changes should be tested against the same preprocessing, subject
+split, and balanced-accuracy metric so that improvements remain interpretable.
+
+## Week 11
 
 **What did I build this week?**
 

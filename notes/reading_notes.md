@@ -4273,3 +4273,354 @@ doi:10.1016/j.neuroimage.2016.10.038.
 **torch.use_deterministic_algorithms.**  
 PyTorch Documentation.  
 https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+
+## Week 10 — How EEGNet Works
+
+### Main idea
+
+EEGNet is a compact convolutional neural network designed specifically for EEG.
+Instead of immediately mixing temporal and spatial information, it first learns
+temporal filters, then learns spatial filters for those temporal features, and
+later combines the resulting representations using separable convolutions [1].
+
+The rough flow is:
+
+EEG
+→ temporal convolution
+→ spatial depthwise convolution
+→ batch normalization + ELU
+→ average pooling + dropout
+→ separable convolution
+→ pooling + dropout
+→ classifier
+
+---
+
+### 1) Input representation
+
+For our data, one batch can be represented as:
+
+(B, 1, 64, 481)
+
+where:
+
+- B = batch size
+- 1 = input feature-map dimension
+- 64 = EEG electrodes
+- 481 = time samples
+
+PyTorch Conv2d expects data in the form:
+
+(N, C, H, W)
+
+so we can treat electrodes and time as the two dimensions over which differently
+shaped convolution kernels operate [2].
+
+The extra `1` is not another EEG electrode.
+
+---
+
+### 2) Temporal convolution
+
+The first stage learns temporal filters.
+
+A kernel shaped:
+
+(1, K)
+
+is:
+
+- 1 electrode high
+- K time samples wide
+
+Therefore the filter moves through time without initially combining different
+electrodes [1].
+
+EEG over time gets scanned by a temporal filter (kernel) and the activation can show whether or not a temporal pattern is present 
+
+The filters are not explicitly told to detect mu, beta, or any other EEG rhythm.
+Their weights are learned because certain temporal patterns help reduce the
+classification loss [1].
+
+The EEGNet paper describes these first temporal convolutions as learning
+frequency-related filtering operations from the EEG data [1].
+
+---
+
+### 3) Spatial depthwise convolution
+
+After temporal convolution, each learned temporal feature still exists across
+the EEG electrodes.
+
+EEGNet then applies a spatial convolution whose kernel spans the electrode
+dimension [1].
+
+A spatial kernel now scans one temporal feature across the 64 electrodes. This creates electrodes weights that represent sptially filtered features. 
+
+This allows the model to learn that some electrode combinations are more useful
+than others for a particular temporal feature.
+
+The electrode weights are learned automatically through training.
+
+---
+
+### 4) What depthwise means
+
+Depthwise convolution prevents all incoming feature maps from being freely mixed
+at this stage.
+
+Instead, each temporal feature is spatially filtered separately [1]:
+
+temporal feature 1
+→ spatial filter for feature 1
+
+temporal feature 2
+→ spatial filter for feature 2
+
+...
+
+In PyTorch, grouped convolution is controlled by the `groups` parameter.
+When `groups` equals the number of input channels, each input channel is
+convolved separately. This is called depthwise convolution [2].
+
+The amount of groups determine amount of spatial outputs for each feature. 
+
+Essentially: 
+"For this particular temporal feature, which spatial electrode pattern is useful?"
+
+---
+
+### 5) Depth multiplier
+
+EEGNet can learn several spatial filters for each temporal filter.
+
+If:
+
+F1 = 8 temporal filters
+
+and:
+
+D = 2
+
+then the depthwise stage produces:
+
+8 × 2 = 16 feature maps
+
+This allows one learned temporal pattern to have more than one learned spatial
+representation [1].
+
+---
+
+### 6) Batch normalization
+
+Batch normalization does not detect EEG patterns.
+
+It normalizes the activations of each feature channel and then applies a
+learnable scaling and shift [3].
+
+This helps keep activation scales manageable during optimization.
+
+Batch normalization also behaves differently during training and evaluation,
+which is one reason `model.train()` and `model.eval()` are important [3].
+
+---
+
+### 7) ELU
+
+EEGNet uses the ELU nonlinear activation function [1].
+
+For positive inputs, ELU behaves approximately linearly.
+
+For negative inputs, it produces negative values that gradually approach a
+lower limit rather than immediately setting them to zero [4].
+
+ELU does not learn filters.
+
+Its role is to introduce nonlinearity so that several convolutional layers can
+represent more complicated relationships.
+
+---
+
+### 8) Average pooling
+
+EEGNet uses average pooling to reduce the temporal dimension [1].
+
+Average pooling takes the average value within a local region [5].
+
+For example:
+
+[0.2, 0.8, 0.4, 1.0]
+
+becomes:
+
+0.6
+
+if those four values are pooled together.
+
+Pooling reduces temporal resolution and the amount of computation needed in
+later layers.
+
+It has no learnable weights.
+
+---
+
+### 9) Dropout
+
+Dropout is used as a regularization method.
+
+During training, some activations are randomly set to zero with probability `p`.
+During evaluation, dropout no longer randomly removes activations [6].
+
+This forces the model to avoid being too strongly dependant on certain activations.
+
+This is important to remove the strong overfitting seen in the Week 9
+generic CNN.
+
+---
+
+### 10) Separable convolution
+
+EEGNet later uses a separable convolution [1].
+
+This can be understood as:
+
+1. Depthwise convolution
+2. Pointwise convolution
+
+#### Depthwise convolution 
+
+The depthwise part processes each feature separately through the time domain. This lets each representation detect more complex temporal relationships as the kernel looks through all features in a group, but only processes each individually.  
+
+Essentially refnine the temporal features
+
+This allows EEGNet to learn useful combinations while using fewer parameters
+than a fully unrestricted convolution [1].
+
+---
+
+#### Pointwise convolution
+
+A pointwise convolution uses a (1, 1) kernel.
+
+It does not inspect a large temporal or spatial neighborhood.
+
+Instead, it combines information across feature maps at the same position [2].
+
+It combines information across different features at the same timepoint to learn new features. 
+
+---
+
+### 11) Final classifier
+
+After convolution, pooling, and dropout, the remaining learned feature maps are
+converted into a feature vector and passed to a classifier.
+
+The classifier produces:
+
+2 logits
+
+corresponding to:
+
+- left motor imagery
+- right motor imagery
+
+CrossEntropyLoss then compares these logits with the true class during training.
+
+---
+
+### 12) Full EEGNet flow
+
+EEG
+↓
+Temporal convolution
+Learn useful temporal patterns
+
+↓
+Depthwise spatial convolution
+Learn where those temporal patterns are expressed across electrodes
+
+↓
+Batch normalization
+Control activation scale
+
+↓
+ELU
+Introduce nonlinearity
+
+↓
+Average pooling
+Compress time
+
+↓
+Dropout
+Regularize the network
+
+↓
+Depthwise temporal convolution
+Refine feature-specific temporal structure
+
+↓
+Pointwise convolution
+Combine learned feature maps
+
+↓
+Pooling + dropout
+
+↓
+Classifier
+
+↓
+2 logits
+left / right
+
+---
+
+### 13) Main difference from the Week 9 CNN
+
+The generic Week 9 CNN mixed EEG channels and temporal information immediately.
+
+EEGNet introduces a stronger EEG-specific structure:
+
+time
+→ learn temporal patterns
+
+electrodes
+→ learn spatial patterns for those temporal features
+
+time/features
+→ refine and combine those representations
+
+This uses depthwise and separable convolutions
+to reduce the number of freely learned parameters [1].
+
+However, this does not guarantee better performance.
+
+The Week 10 experiment will test whether EEGNet improves cross-subject
+generalization while keeping the preprocessing, subject split, labels, and
+evaluation metric fixed.
+
+---
+
+## References
+
+[1] Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M.,
+Hung, C. P., & Lance, B. J. (2018).
+EEGNet: A compact convolutional neural network for EEG-based
+brain-computer interfaces.
+Journal of Neural Engineering, 15(5), 056013.
+https://doi.org/10.1088/1741-2552/aace8c
+
+[2] PyTorch. Conv2d documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+
+[3] PyTorch. BatchNorm2d documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html
+
+[4] PyTorch. ELU documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.nn.ELU.html
+
+[5] PyTorch. AvgPool2d documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
+
+[6] PyTorch. Dropout documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html
