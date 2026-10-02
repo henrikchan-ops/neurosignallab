@@ -870,7 +870,78 @@ Balanced accuracy, confidence intervals, and permutation tests answer different 
 
 The classical phase can now be considered frozen. CSP + LDA provides a benchmark. The next deep-learning phase should test whether learned representations can improve subject-independent generalization while being evaluated under the same standards established here.
 
-## Week 9
+## Week 9 — Building and Training the First CNN Baseline
+
+### What did I build this week?
+
+This week I built the first  deep-learning process for NeuroSignalLab. I moved from the classical CSP/LDA experiments into PyTorch and created a reproducible subject-level training setup for motor-imagery EEG.
+
+I loaded the frozen preprocessed EEG data, created a fixed split of 76 training subjects, 16 validation subjects, and 17 untouched test subjects, and built PyTorch Dataset and DataLoader objects. I then implemented a simple 1D convolutional neural network consisting of two convolutional blocks followed by a linear classifier.
+
+Before running the full experiment, I tested the learning process on a single batch of 32 trials. The CNN successfully overfit this tiny batch, reaching 100% accuracy by step 50 and a loss of 0.0017 by step 300. This confirmed that the forward pass, loss calculation, backpropagation, optimizer, and data pipeline were all functioning.
+
+I then trained the CNN for 30 epochs on the full training set.
+
+Training consisted of 76 subjects and 3,423 EEG trials. Training balanced accuracy increased from 0.493 after the first epoch to 0.993 after epoch 30, while training loss decreased from 0.9557 to 0.0634.
+
+Validation consisted of 16 completely unseen subjects and 718 EEG trials. Validation balanced accuracy started at 0.480, reached a maximum of 0.528 at epoch 16, and finished at 0.523. At the same time, validation loss increased from 0.8749 to 1.9206.
+
+### What did I learn technically?
+
+I learned how a neural-network training process works from the level of individual tensors all the way to full model training. I now understand how EEG trials are organized into batches, moved to the Mac GPU through MPS, passed through convolutional filters, transformed by ReLU and pooling, flattened into learned representations, and converted into class logits.
+
+I also learned how those features are actually learned. The convolutional filters are not manually designed to detect a specific EEG rhythm. They begin with initialized weights and are gradually changed through the combination of CrossEntropyLoss, backpropagation, gradients, and Adam optimization. The label only tells the network whether the trial corresponds to left or right motor imagery; the network must discover representations that help reduce that classification error.
+
+I also learned the distinction between a batch, an optimizer step, and an epoch, and why metrics such as balanced accuracy should be calculated over the predictions from the complete epoch rather than averaged independently across batches.
+
+### What confused me?
+
+The most confusing part was initially understanding what it really means for a CNN to "learn features." I understood that convolution produced feature maps, but it was less obvious where those filters came from, how the second convolution used the feature maps from the first, and why the network would learn useful EEG structure without being explicitly told what to look for.
+
+Working through the weights, gradients, and optimizer step by step clarified that there is no explicit feature-selection step. Instead, the convolutional weights themselves are optimized because some transformations reduce the classification loss more effectively than others.
+
+I also initially found the distinction between `loss.backward()` and `optimizer.step()` confusing. Backpropagation calculates the gradients that describe how the loss changes with respect to each parameter, while the optimizer uses those gradients to actually modify the parameters.
+
+### What decision did I make?
+
+I decided to keep this simple CNN as a baseline rather than continue tuning it.
+
+The model clearly has enough capacity to learn the training data, so the main problem is not that the implementation is broken or that the model cannot optimize. Instead, the experiment exposed a generalization problem.
+
+Rather than repeatedly changing learning rates, adding layers, or training the same architecture for longer, I will preserve this result and move to an EEG-specific architecture while keeping the experimental setup fixed.
+
+### What limitation did I notice?
+
+The major limitation was cross-subject generalization.
+
+The CNN reached a training balanced accuracy of 0.993, yet validation balanced accuracy remained approximately 0.48–0.53 throughout training. Training loss continuously decreased while validation loss increased substantially.
+
+This means the network became increasingly good at explaining the training subjects without learning representations that transferred effectively to unseen people.
+
+The result also showed why high training accuracy can be misleading in EEG. EEG differs substantially between individuals, so a model can appear extremely successful while mainly learning patterns specific to the subjects it has already seen.
+
+Another limitation is that the best validation balanced accuracy of 0.528 should not be treated as a definitive performance estimate. It was selected from multiple epochs using the validation set. The 17 test subjects therefore remain completely untouched.
+
+### How does this connect to my larger goal?
+
+The larger goal of NeuroSignalLab is not simply to obtain a high classification score. I want to understand how machine-learning models extract information from neural signals, how reliably those representations generalize, and how to evaluate them without overstating their performance.
+
+This experiment was therefore useful even though the validation performance was poor. It exposed one of the central difficulties of EEG machine learning: a model can learn the available data extremely well while failing to generalize across people.
+
+The project is gradually moving from simply building models toward asking more meaningful questions about representation learning, subject variability, reproducibility, and the difference between apparent performance and genuine generalization.
+
+### What is the next step?
+
+The next step is EEGNet.
+
+Instead of immediately modifying the generic CNN, I will test an architecture specifically designed for EEG. The preprocessing, labels, 76/16 subject split, untouched 17-subject test set, and balanced-accuracy metric will remain fixed.
+
+This creates a cleaner experiment: the main thing that changes is the model architecture.
+
+The next question is therefore whether an architecture that treats temporal and spatial EEG structure more deliberately can learn representations that transfer better across subjects than the generic 1D CNN.
+
+
+## Week 10
 
 **What did I build this week?**
 
