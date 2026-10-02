@@ -226,3 +226,4 @@ data/external/
 
 data/processed/*.npy
 data/processed/*.npy
+models/*.pt
