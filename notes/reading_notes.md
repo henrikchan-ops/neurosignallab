@@ -4624,3 +4624,211 @@ https://docs.pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
 
 [6] PyTorch. Dropout documentation.
 https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html
+
+## Week 11 — Reproducibility and EEGNet Refinement
+
+### Goal
+
+Week 10 showed that EEGNet generalized substantially better than the baseline CNN.
+
+However, the result came from one training run.
+
+We want to know if the EEGNet result is reproducible across different random initializations, and if a small number of controlled training changes can improve it further
+
+---
+
+### 1) Why random seeds matter
+
+Neural-network training contains randomness.
+
+Different seeds can change:
+
+- initial model weights
+- training-batch order
+- dropout masks
+
+Therefore, different random initializations and stochastic training operations can lead
+to different neural-network outcomes [1].
+
+A single good validation score may partly reflect a fortunate initialization.
+
+Running several seeds lets us estimate how stable the model is.
+
+Instead of reporting only:
+
+Best validation BA = 0.615
+
+we can eventually report something like:
+
+Validation BA = mean ± standard deviation across seeds.
+
+---
+
+### 2) Reproducibility
+
+A model result is more convincing if similar performance appears across several independent training runs.
+
+For example:
+
+Seed 1 → 0.60  
+Seed 2 → 0.61  
+Seed 3 → 0.59  
+Seed 4 → 0.62  
+Seed 5 → 0.60
+
+would suggest a relatively stable model.
+
+But:
+
+Seed 1 → 0.50  
+Seed 2 → 0.61  
+Seed 3 → 0.54  
+Seed 4 → 0.52  
+Seed 5 → 0.60
+
+would suggest that performance is sensitive to initialization.
+
+---
+
+### 3) Mean and standard deviation
+
+The mean summarizes typical performance:
+
+mean = sum of results / number of runs
+
+The standard deviation describes how much performance varies between runs.
+
+Small standard deviation:
+→ training is relatively stable
+
+Large standard deviation:
+→ performance depends strongly on the particular run
+
+Both are important when evaluating neural networks.
+
+---
+
+### 4) Controlled experiments
+
+When refining EEGNet, only a small number of justified variables should be changed.
+
+Examples:
+
+- learning rate
+- dropout
+- weight decay
+
+We should avoid changing many things simultaneously.
+
+If several variables change together, we cannot tell which change caused the result.
+
+Therefore Week 11 uses controlled comparisons.
+
+---
+
+### 5) Hyperparameters
+
+Hyperparameters are settings chosen before or around training rather than learned directly through backpropagation.
+
+Examples include:
+
+- learning rate
+- dropout probability
+- weight decay
+- number of filters
+- kernel size
+- number of epochs
+
+THese are all optimizer hyperparameters that can influence
+optimization and regularization [3].
+
+### 6) Validation data and model selection
+
+The validation set can be used to:
+
+- compare configurations
+- choose a training epoch
+- choose hyperparameters
+
+However, repeatedly selecting models based on the same validation criterion can itself
+lead to model-selection overfitting [2].
+
+Therefore Week 11 should use a small, predefined set of experiments rather than an unlimited search.
+
+The 17 test subjects remain untouched.
+
+
+### 7) Weight decay
+
+Weight decay discourages excessively large model weights.
+
+With Adam, a small weight-decay value can act as another form of regularization:
+
+classification objective
++
+penalty for unnecessarily large weights
+
+This may reduce overfitting, although too much regularization can also reduce learning.
+
+---
+
+### 8) Week 11 strategy
+
+First:
+
+Run the exact Week 10 EEGNet configuration across several random seeds.
+
+This determines whether the current result is reproducible.
+
+Then, only if justified, compare a small number of controlled alternatives such as:
+
+- different learning rate
+- different dropout
+- mild weight decay
+
+Everything else remains fixed:
+
+- preprocessing
+- trials
+- subject split
+- labels
+- metric
+- test set
+
+The primary metric remains validation balanced accuracy.
+## References
+
+[1] PyTorch. Reproducibility and deterministic algorithms.
+https://docs.pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+
+Used for:
+- randomness and reproducibility
+- deterministic algorithms
+- why setting a seed does not automatically guarantee complete reproducibility
+
+[2] Cawley, G. C., & Talbot, N. L. C. (2010).
+On Over-fitting in Model Selection and Subsequent Selection Bias in Performance Evaluation.
+Journal of Machine Learning Research, 11, 2079–2107.
+https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
+
+Used for:
+- validation/model-selection overfitting
+- why repeated tuning on the same validation criterion can bias performance estimates
+- why the final test set should remain untouched
+
+[3] PyTorch. Adam documentation.
+https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html
+
+Used for:
+- learning rate
+- Adam optimizer
+- weight decay as a regularization hyperparameter
+
+[4] Lawhern, V. J., et al. (2018).
+EEGNet: A Compact Convolutional Neural Network for EEG-based Brain-Computer Interfaces.
+Journal of Neural Engineering, 15(5), 056013.
+https://doi.org/10.1088/1741-2552/aace8c
+
+Used for:
+- the EEGNet architecture being evaluated across seeds
+- the architectural baseline carried forward from Week 10
