@@ -1071,7 +1071,224 @@ returning to the severe overfitting seen with the baseline CNN.
 Any further changes should be tested against the same preprocessing, subject
 split, and balanced-accuracy metric so that improvements remain interpretable.
 
-## Week 11
+## Week 11 — Reproducibility, Controlled Refinement, and Subject-Level EEGNet Analysis
+
+### What did I build this week?
+
+This week I asked whether EEGNet´s performance was reproducible, whether small training changes could improve it, and where its remaining cross-subject errors came from.
+
+I first converted the Week 10 EEGNet training process into a reusable seeded experiment and trained the same EEGNet configuration across five predefined random seeds:
+
+- 42
+- 123
+- 456
+- 789
+- 2026
+
+The original EEGNet configuration produced:
+
+**Mean best validation BA = 0.628 ± 0.007 SD**
+
+with individual runs ranging from approximately 0.620 to 0.638.
+
+I then performed a refinement experiment and changed one hyperparameter at a time.
+
+The four configurations were:
+
+- **A — Baseline:** learning rate `1e-3`, dropout `0.50`, no weight decay
+- **B — Lower learning rate:** learning rate `3e-4`
+- **C — Lower dropout:** dropout `0.25`
+- **D — Mild weight decay:** weight decay `1e-4`
+
+Across five seeds:
+
+- Configuration A: `0.628 ± 0.007`
+- Configuration B: `0.606 ± 0.011`
+- Configuration C: `0.620 ± 0.011`
+- Configuration D: `0.628 ± 0.002`
+
+Configuration D did not meaningfully improve mean accuracy, but it substantially reduced variability across random seeds.
+
+I then created a second Week 11 notebook to make the EEGNet implementation more faithful to the documented architecture.
+
+The original EEGNet implementation uses max-norm constraints on:
+
+- the depthwise spatial filters: maximum norm `1.0`
+- the final classifier weights: maximum norm `0.25`
+
+I implemented these constraints in PyTorch and applied them after every optimizer update.
+
+The constrained EEGNet achieved:
+
+**Mean best validation BA = 0.634 ± 0.012 SD**
+
+with individual runs ranging from approximately 0.622 to 0.647.
+
+Finally, I saved the best-epoch predictions from each seed and performed subject-level analysis across all 16 validation subjects.
+
+This showed that the validation results hid large differences between individuals.
+
+For example, some subjects reached balanced accuracy above 0.90, while others remained near or below chance.
+
+
+The subject-level performance of Configuration D and the constrained EEGNet was also extremely similar:
+
+**Subject-performance correlation: r = 0.971**
+
+The constrained EEGNet improved 9 of the 16 validation subjects and worsened 7.
+
+### What did I learn technically?
+
+I learned why one neural-network run is not enough to characterize a model.
+
+Different random seeds affect:
+
+- initial model weights
+- training-batch order
+- dropout masks
+
+Running the same model across multiple seeds allowed me to separate genuine model behavior from a potentially lucky initialization.
+
+I also learned how to structure controlled machine-learning experiments. Instead of changing many things simultaneously, I changed one variable at a time while keeping the preprocessing, subject split, architecture, batch size, optimizer, number of epochs, and evaluation metric fixed.
+
+This made the results interpretable.
+
+I learned the difference between weight decay and max-norm constraints.
+
+Weight decay applies a continuous regularization during optimization,by encouraging smaller weights.
+
+Max-norm instead creates an explicit boundary. If a selected weight vector exceeds that boundary it is rescaled back to the permitted norm.
+
+For the constrained EEGNet, I implemented:
+
+`spatial filter norm ≤ 1.0`
+
+and:
+
+`classifier weight norm ≤ 0.25`
+
+I also learned how to save the state of the model at its best validation epoch rather than automatically analyzing the model from the final epoch.
+
+This was important because the best epoch was often earlier than epoch 30.
+
+### What confused me?
+
+One confusing part was understanding why different random seeds mattered when the architecture, dataset, and training code were identical.
+
+The five-seed experiment made this clearer: neural-network optimization itself contains stochastic components, so reproducibility has to be measured rather than assumed.
+
+I also initially found the distinction between weight decay and max-norm confusing because both restrict model weights in some way.
+
+The difference became clearer when implementing the max-norm function directly.
+
+Weight decay influences every optimizer update, while max-norm only intervenes when a weight vector exceeds a predefined boundary.
+
+I also had to understand why the best model state needed to be copied during training.
+
+If the best validation performance occurs at epoch 13 but training continues to epoch 30, the final weights no longer represent the best-performing model. Saving and later restoring the best state ensures that subject-level predictions are generated from the actual selected model.
+
+### What decision did I make?
+
+I decided to stop broad hyperparameter tuning.
+
+Lowering the learning rate and reducing dropout both decreased mean performance, while mild weight decay preserved mean performance and greatly improved stability.
+
+Configuration D therefore became the stable EEGNet reference configuration:
+
+- learning rate `1e-3`
+- dropout `0.50`
+- weight decay `1e-4`
+- batch size `32`
+- 30 epochs
+
+I then tested the documented EEGNet max-norm constraints as one final bounded architectural correction rather than opening another large hyperparameter search.
+
+Configuration D remains the stable reference, while the constrained EEGNet remains an important alternative with a slightly higher observed performance ceiling.
+
+The final model choice should be made after broader model comparison rather than by continuing to tune EEGNet on the same validation subjects.
+
+
+### What limitation did I notice?
+
+The most important limitation is now clearly inter-subject variability.
+
+Some validation subjects were classified extremely well:
+
+- subject 29: approximately `0.92–0.93 BA`
+- subject 34: approximately `0.85–0.90 BA`
+- subject 60: approximately `0.80–0.83 BA`
+
+Other subjects remained around chance:
+
+- subject 3: approximately `0.41–0.48 BA`
+- subject 89: approximately `0.49–0.53 BA`
+- subject 101: approximately `0.50–0.51 BA`
+
+The correlation between subject-level performance for Configuration D and constrained EEGNet was:
+
+**r = 0.971**
+
+This means that changing the regularization strategy did not fundamentally change which subjects were difficult.
+
+The constrained EEGNet improved 9 subjects and worsened 7, with an average subject-level improvement of only approximately `+0.007 BA`.
+
+Another limitation is that the same 16 validation subjects have now influenced several model-development decisions.
+
+Continually adding new architectures or hyperparameters based on this validation set could gradually overfit the research process to the validation subjects.
+
+### How does this connect to my larger goal?
+
+The larger goal of NeuroSignalLab is not simply to obtain the highest possible EEG classification score.
+
+The goal is to understand how neural signals can be modeled reliably, particularly when the model must generalize to people it has never seen before.
+
+Week 9 showed that a generic CNN could nearly memorize the training subjects while failing to generalize.
+
+Week 10 showed that EEGNet produced much healthier cross-subject performance.
+
+Week 11 then showed that this result was reproducible and that small optimizer or regularization changes were not enough to solve the remaining problem.
+
+Most importantly, the subject-level analysis revealed that the central difficulty is strongly related to differences between individuals.
+
+The project has therefore progressed from:
+
+`Can a neural network learn these EEG trials?`
+
+to:
+
+`Can an EEG-specific model generalize to unseen people?`
+
+and now to:
+
+`Why does the same model generalize extremely well to some unseen people but remain near chance for others?`
+
+
+### What is the next step?
+
+The next step is rigorous model comparison.
+
+The goal is no longer to continue adjusting EEGNet.
+
+Instead, I will compare whether different representations solve the same subject-generalization problem.
+
+The comparison will include:
+
+- CSP + LDA
+- the generic CNN baseline
+- the finalized EEGNet variants
+- an established alternative EEG architecture such as ShallowConvNet
+
+The same preprocessing, subject split, and evaluation principles will be maintained.
+
+The most important question will be whether these different model families fail on the same validation subjects.
+
+If a subject that EEGNet cannot decode is successfully classified by CSP/LDA or ShallowConvNet, that would suggest that the limitation is partly representation-specific.
+
+If every model struggles with the same individuals, that would provide stronger evidence that subject-to-subject EEG variability is the dominant bottleneck.
+
+The 17 test subjects will remain sealed until the model-development and model-selection process is complete.
+
+## Week 12
 
 **What did I build this week?**
 

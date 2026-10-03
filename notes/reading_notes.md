@@ -4625,7 +4625,7 @@ https://docs.pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
 [6] PyTorch. Dropout documentation.
 https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html
 
-## Week 11 — Reproducibility and EEGNet Refinement
+## Week 11a — Reproducibility and EEGNet Refinement
 
 ### Goal
 
@@ -4832,3 +4832,464 @@ https://doi.org/10.1088/1741-2552/aace8c
 Used for:
 - the EEGNet architecture being evaluated across seeds
 - the architectural baseline carried forward from Week 10
+
+## Week 11b — Faithful EEGNet and Subject-Level Analysis
+
+### 1) Why revisit the EEGNet implementation?
+
+The current model follows the main EEGNet structure:
+
+- temporal convolution
+- depthwise spatial convolution
+- separable convolution
+- BatchNorm
+- ELU
+- average pooling
+- dropout
+- final classification layer
+
+However, reproducing a published neural network involves more than matching only the visible sequence of layers. Constraints, regularization choices, kernel settings, and other training details can also affect the final behavior.
+
+Lawhern et al. designed EEGNet as a compact EEG-specific CNN using depthwise and separable convolutions and evaluated it on both within-subject and cross-subject BCI problems [1].
+
+The goal of Week 11b is to make the current implementation more faithful to the documented EEGNet-8,2 specification before deciding that the architecture has reached its ceiling.
+
+---
+
+### 2) What does EEGNet-8,2 use?
+
+The official EEGNet implementation defines the standard model using:
+
+- `F1 = 8`
+- `D = 2`
+- `F2 = F1 × D = 16`
+- ELU activation
+- average pooling
+- dropout
+- depthwise spatial convolution
+- separable convolution
+
+These major architectural choices already match the current NeuroSignalLab model [2].
+
+The official implementation also includes two max-norm constraints that are currently missing:
+
+#### Depthwise spatial convolution
+
+The depthwise spatial convolution uses:
+
+`max_norm(1.0)`
+
+#### Final classifier
+
+The final dense classifier uses:
+
+`max_norm(norm_rate)`
+
+with the default:
+
+`norm_rate = 0.25`
+
+[2]
+
+These are the main constraints to investigate in Week 11b.
+
+---
+
+### 3) What is a max-norm constraint?
+
+A max-norm constraint places an upper limit on the L2 norm of a weight vector.
+
+For a weight vector:
+
+`w`
+
+the L2 norm is:
+
+`||w||₂`
+
+A max-norm constraint requires:
+
+`||w||₂ ≤ c`
+
+where `c` is the chosen maximum.
+
+If an optimizer update makes the norm exceed this limit, the weight vector can be rescaled back to the allowed magnitude.
+
+Keras documents MaxNorm as a constraint on the norm of weight vectors that is applied after optimizer updates [3].
+
+Max-norm therefore does not prevent learning. It only prevents selected weight vectors from growing beyond a predefined magnitude.
+
+---
+
+### 4) Max-norm is different from weight decay
+
+This distinction is important because Week 11 already tested weight decay.
+
+#### Weight decay
+
+Weight decay continuously encourages the optimizer to keep parameters smaller.
+
+It acts as a soft regulator during optimization.
+
+### Max-norm
+
+Max-norm instead places an explicit upper boundary on selected weight vectors:
+
+`||w||₂ ≤ c`
+
+If the weight norm is already below the limit, max-norm may do nothing.
+
+This means that the Week 11 experiment with `weight_decay = 1e-4` does not tell us whether the EEGNet max-norm constraints are useful. They are different mechanisms [3].
+
+---
+
+### 5) Why constrain the spatial filters?
+
+EEGNet first learns temporal filters.
+
+The subsequent depthwise convolution learns spatial filters across EEG channels separately for each temporal feature.
+
+The official EEGNet implementation constrains these depthwise spatial filters using:
+
+`max_norm(1.0)`
+
+[2]
+
+The spatial filters determine how information from different electrodes is weighted and combined.
+
+Constraining their magnitude prevents these learned spatial weight vectors from growing without limit.
+
+Week 11b will test whether this documented constraint changes cross-subject generalization or training stability.
+
+### 6) Why constrain the final classifier?
+
+After EEGNet extracts its features, the representation is flattened and passed into the final classifier.
+
+The official implementation constrains the classifier weights using:
+
+`max_norm(0.25)`
+
+by default [2].
+
+This restricts how large the classifier's incoming weight vectors can become.
+
+The constraint may affect:
+
+- regularization
+- prediction confidence
+- generalization
+
+---
+
+### 7) Is our temporal kernel reasonable?
+
+The official EEGNet implementation notes that temporal kernel length should depend on sampling frequency.
+
+For its sensorimotor rhythm experiment, EEGNet used a kernel length of 32 samples on data sampled at 128 Hz [2].
+
+That corresponds to:
+
+`32 / 128 = 0.25 seconds`
+
+Our model uses a kernel length of 40 samples at 160 Hz:
+
+`40 / 160 = 0.25 seconds`
+
+Therefore, both kernels span approximately 250 ms.
+
+It provides a principled reason not to start randomly tuning temporal kernel size.
+
+---
+
+### 8) Dropout choice
+
+The official EEGNet implementation supports both standard Dropout and SpatialDropout2D.
+
+However, the implementation notes that SpatialDropout2D performed worse on the oscillatory sensorimotor-rhythm dataset and recommends standard Dropout in most cases [2].
+
+Our current use of ordinary dropout therefore already fits the documented recommendation for an SMR (sensory motor rhythm) / motor-imagery-type problem.
+
+### 9) More faithful does not mean exact reproduction
+
+Week 11b will make our architecture more faithful to EEGNet, but it will not reproduce the original EEGNet experiments exactly.
+
+NeuroSignalLab uses:
+
+- 160 Hz harmonized sampling
+- 64 EEG channels
+- a 3-second analysis window
+- our frozen preprocessing pipeline
+- a fixed subject-level train/validation split
+- completely unseen validation subjects
+- balanced accuracy as the primary metric
+
+It is not an exact reproduction of the original EEGNet study
+
+---
+
+### Subject-Level Analysis
+
+### 10) Why pooled validation performance is not enough
+
+The current EEGNet produces an overall validation balanced accuracy of approximately:
+
+`0.63`
+
+However, one pooled number does not show how performance is distributed across individuals.
+
+For example, both of the following could produce a similar pooled result:
+
+#### Scenario A
+
+Most subjects perform around:
+
+`BA ≈ 0.60–0.65`
+
+#### Scenario B
+
+Some subjects perform around:
+
+`BA ≈ 0.80`
+
+while others remain near:
+
+`BA ≈ 0.50`
+
+These situations would have very different interpretations. Week 11b will calculate performance separately for every validation subject.
+
+---
+
+### 11) Inter-subject variability in EEG
+
+EEG signals vary substantially between individuals.
+
+Reviews of sensorimotor-rhythm BCIs describe inter-subject variability as an important challenge for models that must generalize from one group of people to another [4].
+
+Motor-imagery BCI research has repeatedly reported large differences in performance between users [5].
+
+More recent work also identifies inter-subject variability as a major obstacle to generalization in EEG-based motor-imagery decoding [6].
+
+This makes subject-level analysis especially important for NeuroSignalLab because the central problem is generalization to unseen subjects.
+
+---
+
+### 12) Subject-level balanced accuracy
+
+Instead of evaluating all 718 validation trials as one pooled dataset, balanced accuracy can be calculated independently for each of the 16 validation subjects.
+
+For example:
+
+`Subject 1 → BA = 0.71`
+
+`Subject 2 → BA = 0.54`
+
+`Subject 3 → BA = 0.67`
+
+`...`
+
+This allows us to examine:
+
+- median subject performance
+- variation between subjects
+- minimum and maximum subject performance
+- how many subjects remain near chance
+- which subjects perform clearly above chance
+- whether different models fail on the same subjects
+
+This gives a much richer picture of cross-subject generalization than one pooled validation score.
+
+---
+
+### 13) Why repeated hard subjects matter
+
+Suppose both Configuration D and the more faithful EEGNet perform poorly on the same validation subjects.
+
+That would suggest that the problem is not simply one random initialization or one optimizer trajectory.
+
+Instead, the difficult subjects may reflect factors such as:
+
+- different EEG feature distributions
+- individual motor-imagery patterns
+- signal-quality differences
+- cross-subject distribution shift
+
+We should not claim a biological explanation from classification results alone.
+
+However, we can identify whether model failure is random or consistently associated with particular subjects.
+
+Inter- and intra-subject variability in EEG is well documented [4,6].
+
+---
+
+### 14) Avoiding validation-set overfitting
+
+The same validation subjects have already been used to compare:
+
+- the generic CNN
+- EEGNet
+- different learning rates
+- different dropout levels
+- weight decay
+
+If we repeatedly try new architectures and hyperparameters until validation performance increases, we risk adapting our research decisions to the validation set.
+
+Cawley and Talbot describe how the model-selection process itself can overfit the selection criterion and introduce selection bias [7].
+
+Therefore, Week 11b is deliberately bounded.
+
+We are testing only the documented EEGNet max-norm constraints.
+
+### Week 11b Research Questions
+
+#### Phase 3A — More faithful EEGNet
+
+##### Question
+
+Does adding the documented EEGNet max-norm constraints change cross-subject performance or reproducibility?
+
+We will compare:
+
+##### Current Configuration D
+
+- learning rate: `1e-3`
+- dropout: `0.50`
+- weight decay: `1e-4`
+- no max-norm constraints
+- 30 epochs
+
+against:
+
+##### More faithful EEGNet
+
+- same architecture
+- same preprocessing
+- same train/validation subjects
+- same training horizon
+- documented max-norm constraints
+- same five random seeds
+
+The comparison will focus on:
+
+- mean validation balanced accuracy
+- standard deviation across seeds
+- best epoch
+- subject-level performance
+
+The result will be judged using performance across all seeds rather than the highest individual run.
+
+---
+
+### Phase 3B — Subject-level analysis
+
+#### Question
+
+Where does the approximately 0.63 validation balanced accuracy come from?
+
+For each validation subject we will:
+
+1. calculate balanced accuracy
+2. examine the distribution across subjects
+3. identify subjects near chance
+4. identify subjects substantially above chance
+5. compare Configuration D with the more faithful EEGNet
+6. determine whether the same subjects remain difficult across models
+
+This will help distinguish between a general performance limitation and strong subject-to-subject variability.
+
+## References
+
+### [1] EEGNet paper
+
+Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M., Hung, C. P., & Lance, B. J. (2018).
+
+**EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces.**
+
+*Journal of Neural Engineering, 15(5), 056013.*
+
+DOI: `10.1088/1741-2552/aace8c`
+
+https://pubmed.ncbi.nlm.nih.gov/29932424/
+
+---
+
+### [2] Official EEGNet implementation
+
+Lawhern et al.
+
+**arl-eegmodels — EEGModels.py**
+
+Official implementation containing:
+
+- EEGNet-8,2 architecture
+- depthwise `max_norm(1.0)`
+- classifier `max_norm(norm_rate)`
+- temporal-kernel guidance
+- dropout recommendations
+
+https://github.com/vlawhern/arl-eegmodels/blob/master/EEGModels.py
+
+---
+
+### [3] Keras MaxNorm documentation
+
+Keras.
+
+**Layer weight constraints — MaxNorm**
+
+Documents how max-norm restricts weight-vector norms and how constraints are applied after optimizer updates.
+
+https://keras.io/api/layers/constraints/
+
+---
+
+### [4] EEG inter-subject variability review
+
+Saha, S., & Baumert, M. (2020).
+
+**Intra- and Inter-subject Variability in EEG-Based Sensorimotor Brain Computer Interface: A Review.**
+
+*Frontiers in Computational Neuroscience, 13, 87.*
+
+DOI: `10.3389/fncom.2019.00087`
+
+https://pubmed.ncbi.nlm.nih.gov/32038208/
+
+---
+
+### [5] Motor-imagery performance variation
+
+Ahn, M., & Jun, S. C. (2015).
+
+**Performance variation in motor imagery brain-computer interface: A brief review.**
+
+*Journal of Neuroscience Methods, 243, 103–110.*
+
+DOI: `10.1016/j.jneumeth.2015.01.033`
+
+https://pubmed.ncbi.nlm.nih.gov/25668430/
+
+---
+
+### [6] Inter-subject variability in motor-imagery EEG
+
+Huang, G., et al. (2023).
+
+**Discrepancy between inter- and intra-subject variability in EEG-based motor imagery brain-computer interface: Evidence from multiple perspectives.**
+
+*Frontiers in Neuroscience, 17, 1122661.*
+
+DOI: `10.3389/fnins.2023.1122661`
+
+https://pubmed.ncbi.nlm.nih.gov/36860620/
+
+---
+
+### [7] Model-selection overfitting
+
+Cawley, G. C., & Talbot, N. L. C. (2010).
+
+**On Over-fitting in Model Selection and Subsequent Selection Bias in Performance Evaluation.**
+
+*Journal of Machine Learning Research, 11, 2079–2107.*
+
+https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
