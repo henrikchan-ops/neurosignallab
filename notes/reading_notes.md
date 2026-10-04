@@ -5293,3 +5293,543 @@ Cawley, G. C., & Talbot, N. L. C. (2010).
 *Journal of Machine Learning Research, 11, 2079–2107.*
 
 https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
+
+
+## Week 12 — Model Comparison and Representation Analysis
+
+### 1) Goal of Week 12
+
+Week 11 showed that EEGNet generalizes better than the original CNN, but
+performance varies substantially between unseen subjects.
+
+The next question is if different EEG representations succeed and fail on the same subjects.
+
+The main model families to compare are:
+
+- CSP + LDA
+- generic CNN
+- EEGNet
+- ShallowConvNet / ShallowFBCSPNet
+
+
+The comparison should help determine whether the difficult validation
+subjects are difficult for EEG decoding in general, or difficult specifically for the representation learned by EEGNet.
+
+All models should be evaluated using the same subject-independent validation
+protocol whenever possible.
+
+### 2) Why compare different model families?
+
+A model's performance depends partly on the representation it extracts from EEG.
+
+Different models emphasize different properties of the signal.
+
+For example:
+
+**CSP + LDA**
+uses explicitly constructed spatial variance features.
+
+**Generic CNN**
+learns features using relatively unconstrained convolutional filters.
+
+**EEGNet**
+uses an EEG-specific sequence of temporal filtering, spatial filtering, and
+separable convolutions.
+
+**ShallowConvNet**
+is designed to learn representations related to EEG band-power features.
+
+Therefore, comparing these models is more informative than repeatedly changing
+small hyperparameters within EEGNet.
+
+If several fundamentally different methods fail on the same subjects, this
+supports the idea that strong inter-subject variability is a major limitation.
+
+If another representation performs well on subjects where EEGNet performs poorly,
+the limitation may instead be partly representation-specific.
+
+Cross-subject EEG decoding is known to be difficult because EEG distributions can
+vary substantially between people, creating a domain shift between training and
+previously unseen subjects [1,2].
+
+---
+
+### 3) CSP as a classical EEG representation
+
+Common Spatial Patterns (CSP) is a widely used feature-extraction method for
+motor-imagery EEG.
+
+CSP learns spatial filters that transform the EEG channels into new signals.
+
+For two classes, the filters are chosen so that the variance of the transformed
+signal is high for one class and low for the other [3].
+
+Conceptually:
+
+EEG channels
+→ learned spatial combinations
+→ variance / log-variance features
+→ classifier
+
+This is useful for motor imagery because changes in sensorimotor rhythms can be
+reflected in changes in signal power.
+
+Unlike a neural network, CSP does not learn a hierarchy of nonlinear features.
+
+It explicitly searches for spatial projections whose variance differs between
+the two classes.
+
+
+### 4) LDA after CSP
+
+Linear Discriminant Analysis (LDA) is commonly used after CSP.
+
+CSP produces features.
+
+LDA then learns a linear decision boundary between the classes.
+
+Conceptually:
+
+CSP:
+EEG → useful features
+
+LDA:
+features → class prediction
+
+The combination CSP + LDA has been widely used as a classical motor-imagery BCI
+pipeline [3,4].
+
+A deep-learning model should not be considered useful merely because it is more
+complex. It should be compared against simpler established methods under a fair
+evaluation protocol.
+
+---
+
+### 5) Why the old CSP result cannot simply be compared with EEGNet
+
+Earlier NeuroSignalLab CSP experiments used evaluation procedures such as
+leave-one-subject-out cross-validation.
+
+The Week 9–11 neural-network experiments instead use one fixed:
+
+- 76-subject training set
+- 16-subject validation set
+- 17-subject sealed test set
+
+These are different evaluation protocols.
+
+Therefore, an old CSP score and the current EEGNet validation score are not comparable because both use balanced accuracy.
+
+For Week 12, CSP + LDA should be evaluated using the same 76 training subjects and
+16 validation subjects used by the neural networks.
+
+This keeps:
+
+- preprocessing
+- subjects
+- trials
+- labels
+- validation population
+- primary metric
+
+as consistent as possible.
+
+### 6) ShallowConvNet / ShallowFBCSPNet
+
+ShallowConvNet was introduced by Schirrmeister et al. as a convolutional neural
+network for EEG decoding [5].
+
+The architecture was deliberately designed to resemble established EEG
+band-power processing.
+
+A modern implementation is commonly called `ShallowFBCSPNet` in Braindecode [6].
+
+Its basic structure is approximately:
+
+EEG
+→ temporal convolution
+→ spatial convolution
+→ squaring nonlinearity
+→ mean pooling
+→ logarithm
+→ classifier
+
+[5,6]
+
+This is different from EEGNet.
+
+EEGNet learns a sequence of compact convolutional representations using depthwise
+and separable convolutions.
+
+ShallowConvNet instead contains operations that make it behave more like a learned
+band-power feature extractor.
+
+---
+
+#### Temporal convolution in ShallowConvNet
+
+The first convolution operates over time.
+
+It learns temporal filters that can respond to different temporal or
+frequency-related patterns in the EEG.
+These filters are learned from the training data rather than manually specifying
+a fixed frequency band.
+
+---
+
+#### Spatial convolution in ShallowConvNet
+
+After temporal filtering, ShallowConvNet learns spatial filters across EEG
+channels:
+
+temporally filtered electrodes
+→ learned electrode combinations
+→ spatially filtered features
+
+This has similarities to CSP.
+
+Both approaches learn weighted combinations of electrodes.
+
+However:
+
+**CSP**
+optimizes spatial filters using a variance-based mathematical objective.
+
+**ShallowConvNet**
+learns spatial filters through gradient descent as part of the entire neural
+network.
+
+---
+
+#### Squaring nonlinearity
+
+A distinctive feature of ShallowConvNet is its square activation.
+
+Instead of an activation such as ReLU or ELU, an activation value `x` is
+transformed approximately as:
+
+`x → x²`
+
+[5,6]
+
+Squaring makes the representation sensitive to signal magnitude or energy.
+
+For example:
+
+`2 → 4`
+
+`-2 → 4`
+
+The sign disappears, while magnitude becomes important.
+
+This relates naturally to EEG power, because signal power is related to squared
+amplitude.
+
+---
+
+#### Mean pooling
+
+After squaring, the network averages values over a temporal window: 
+
+many squared samples
+→ average
+→ estimate of local signal energy
+
+This resembles calculating power over a time window.
+
+Therefore:
+
+temporal filtering
++
+squaring
++
+mean pooling
+
+allows the network to build features related to band power.
+
+---
+
+#### Logarithmic nonlinearity
+
+After mean pooling, ShallowConvNet applies a logarithmic transformation: 
+
+power estimate
+→ log(power)
+
+This resembles the log-variance / log-power transformations commonly used in
+classical EEG pipelines such as CSP.
+
+The logarithm compresses large differences in power and produces a representation
+that is useful for classification.
+
+This is why ShallowConvNet is sometimes interpreted as a neural-network CSP-style EEG processing [5].
+
+---
+
+### 7) Why ShallowConvNet is valuable for NeuroSignalLab
+
+ShallowConvNet provides a useful intermediate comparison between CSP and EEGNet.
+
+CSP + LDA:
+explicit classical spatial-variance representation
+
+ShallowConvNet:
+learned neural representation with strong band-power structure
+
+EEGNet:
+compact EEG-specific convolutional representation
+
+Generic CNN:
+less EEG-specific learned representation
+
+Therefore, comparing these four models tests different assumptions about what
+information in the EEG is useful for motor-imagery classification.
+
+---
+
+### 8) Fair model comparison
+
+A fair model comparison requires controlling as many experimental factors as
+possible.
+
+Models should use the same:
+
+- preprocessing
+- training subjects
+- validation subjects
+- labels
+- time window
+- primary evaluation metric
+
+The purpose is to isolate the effect of the model representation rather than
+accidentally comparing different datasets or evaluation protocols.
+
+Not every implementation detail must be identical.
+
+For example, different architectures may reasonably require different training
+procedures.
+
+However, differences must be documented.
+
+The result should be interpreted as a comparison of model
+configurations under the same data protocol.
+
+---
+
+### 9) Balanced accuracy remains the primary metric
+
+### 10) Pooled performance and subject-level performance answer different questions
+
+Week 11 showed that pooled validation BA hides large differences between
+individual subjects.
+
+Therefore Week 12 should examine both pooled balanced accuracy and subject-level balanced accuracy
+
+Pooled BA answers:
+
+**How well does the model classify the entire validation dataset?**
+
+Subject-level BA answers:
+
+**How well does the model generalize to each individual unseen person?**
+
+### 11) Comparing subject-level patterns between models
+
+For every model, Week 12 can construct a vector containing the mean performance
+for each validation subject.
+
+For example:
+
+EEGNet:
+
+`[0.73, 0.41, 0.70, ..., 0.60]`
+
+ShallowConvNet:
+
+`[0.68, 0.57, 0.72, ..., 0.65]`
+
+These vectors can then be compared.
+
+If subject-level performance is highly correlated between models, the same people
+tend to be easy and difficult regardless of representation.
+
+If correlation is much lower, different models may succeed on different subjects.
+
+### 12) Paired subject-level comparison
+
+Because every model is evaluated on the same 16 validation subjects, performance
+can be compared subject by subject.
+
+For a subject:
+
+`difference = Model B BA - Model A BA`
+
+A positive value means Model B performed better for that subject.
+
+A negative value means Model A performed better.
+
+This is more informative than comparing only two overall averages.
+
+It shows whether an improvement occurs roadly across many subjects, or only because a few subjects improve substantially.
+
+
+### 13) Why the test set stays sealed
+
+The 17 test subjects must remain untouched during Week 12.
+
+The 16 validation subjects have already been used to:
+
+- select models
+- compare hyperparameters
+- compare regularization
+- examine subject-level behavior
+
+Therefore the validation set is part of the development process.
+
+The test set serves a different purpose.
+
+It should estimate performance only after the model-development strategy has been
+frozen.
+
+Opening the test set and then changing the model based on its results would turn
+the test set into another validation set.
+
+---
+
+### 14) Week 12 Research Questions
+
+Week 12 asks:
+
+#### Question 1
+
+Under the same 76/16 subject split, how does CSP + LDA compare with the neural
+models?
+
+#### Question 2
+
+Does ShallowConvNet provide better cross-subject performance than EEGNet?
+
+#### Question 3
+
+Do CSP, generic CNN, EEGNet, and ShallowConvNet fail on the same validation
+subjects?
+
+#### Question 4
+
+Are the difficult subjects consistently difficult across fundamentally different
+representations?
+
+#### Question 5
+
+Does one model improve performance broadly across subjects, or are apparent gains
+driven by only a few people?
+
+---
+
+## 15) What Week 12 should produce
+
+The final Week 12 comparison should include:
+
+- pooled validation balanced accuracy for each model
+- mean and standard deviation across seeds for neural models
+- subject-level balanced accuracy
+- model-to-model subject-performance correlations
+- paired subject-level differences
+- a clear statement of which model configuration will move forward
+
+The purpose is to understand what kind of EEG representation generalizes best
+and whether the remaining errors are model-specific or subject-specific.
+
+## References
+
+### [1] Li, T., Yan, Y., Dou, F., Song, W., & Zhang, X. (2026)
+
+**Cross-subject generalization for EEG decoding: a survey of deep learning methods.**
+
+*Progress in Biomedical Engineering.*
+
+DOI: `10.1088/2516-1091/ae65f0`
+
+Used for:
+- cross-subject EEG generalization
+- inter-subject variability
+- domain shift
+- subject-independent evaluation
+
+---
+
+### [2] Cross-variability review (2026)
+
+**Cross-variability decoding for motor imagery EEG signals: a comprehensive review.**
+
+*Frontiers in Neuroscience.*
+
+DOI: `10.3389/fnins.2026.1899645`
+
+Used for:
+- cross-subject motor-imagery decoding
+- differences between subject-dependent, cross-session, and cross-subject
+  evaluation
+- inter-subject variability as a generalization challenge
+
+---
+
+### [3] Padfield, N., Zabalza, J., Zhao, H., Masero, V., & Ren, J. (2019)
+
+**EEG-Based Brain-Computer Interfaces Using Motor-Imagery: Techniques and Challenges.**
+
+*Sensors, 19(6), 1423.*
+
+Used for:
+- CSP
+- CSP as a common motor-imagery feature-extraction method
+- spatial filtering and variance-based class separation
+
+---
+
+### [4] Naeem, M., Brunner, C., Leeb, R., Graimann, B., & Pfurtscheller, G. (2013)
+
+**Common spatial pattern and linear discriminant analysis for motor imagery classification.**
+
+Used for:
+- CSP + LDA as a classical motor-imagery classification pipeline
+
+---
+
+### [5] Schirrmeister, R. T., Springenberg, J. T., Fiederer, L. D. J.,
+Glasstetter, M., Eggensperger, K., Tangermann, M., Hutter, F., & Ball, T. (2017)
+
+**Deep learning with convolutional neural networks for EEG decoding and visualization.**
+
+*Human Brain Mapping, 38(11), 5391–5420.*
+
+DOI: `10.1002/hbm.23730`
+
+Used for:
+- ShallowConvNet
+- temporal and spatial convolutions
+- squaring nonlinearity
+- mean pooling
+- logarithmic transformation
+- relation to band-power EEG features
+
+---
+
+### [6] Braindecode documentation
+
+**ShallowFBCSPNet**
+
+Modern implementation of the ShallowConvNet architecture described by
+Schirrmeister et al.
+
+The documented implementation includes:
+
+- temporal convolution
+- spatial convolution
+- square activation
+- mean pooling
+- logarithmic activation
+- batch normalization
+- dropout
+
+Used as the implementation reference for the Week 12 ShallowConvNet experiment.

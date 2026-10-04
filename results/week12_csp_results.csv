@@ -1,0 +1,2 @@
+model,accuracy,balanced_accuracy,macro_f1
+CSP + LDA,0.5724233983286908,0.5727226154992549,0.5724159335809821
