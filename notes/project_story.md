@@ -1288,7 +1288,320 @@ If every model struggles with the same individuals, that would provide stronger 
 
 The 17 test subjects will remain sealed until the model-development and model-selection process is complete.
 
-## Week 12
+## Week 12 — Model Comparison and Representation Analysis
+
+### What did I build this week?
+
+This week I built a comparison between several different
+ways of decoding motor-imagery EEG.
+
+Until now, most of the project had focused on EEGNet. Week 12 expanded the
+comparison to five model configurations:
+
+- generic CNN
+- CSP + LDA
+- ShallowConvNet
+- Configuration D EEGNet
+- constrained EEGNet
+
+All models were evaluated using the same preprocessing and the same
+76-subject training / 16-subject validation split wherever possible.
+
+I first rebuilt the classical CSP + LDA pipeline on the fixed neural-network
+split.
+
+CSP initially failed during its generalized eigendecomposition because the
+common-average-referenced EEG was "rank deficient".
+
+Although NumPy reported numerical rank 64, the average across channels was
+approximately zero and the smallest singular value was only around
+`6 × 10^-9` of the largest.
+
+This showed that the EEG was effectively rank 63.
+
+After explicitly using the known EEG rank of 63, CSP + LDA trained successfully
+and achieved:
+
+**Validation BA = 0.573**
+
+I then evaluated ShallowConvNet across the same five random seeds used for EEGNet.
+
+ShallowConvNet achieved:
+
+**`0.621 ± 0.007` validation BA**
+
+Next, I repeated the original generic CNN across five seeds.
+
+The generic CNN achieved:
+
+**`0.530 ± 0.014` validation BA**
+
+This reproduced the Week 9 failure and confirmed that the poor cross-subject
+generalization was not caused by one unlucky initialization.
+
+Finally, I combined these results with the two EEGNet configurations developed in
+Week 11.
+
+The final validation comparison was:
+
+- Generic CNN: `0.530 ± 0.014`
+- CSP + LDA: `0.573`
+- ShallowConvNet: `0.621 ± 0.007`
+- Configuration D EEGNet: `0.628 ± 0.002`
+- constrained EEGNet: `0.634 ± 0.012`
+
+I also compared performance separately for each of the 16 validation subjects.
+
+No model was best for every subject.
+
+The number of subject-level wins was:
+
+- constrained EEGNet: 5
+- Configuration D: 3
+- ShallowConvNet: 3
+- generic CNN: 3
+- CSP + LDA: 2
+
+---
+
+### What did I learn technically?
+
+I learned how to compare different model families fairly rather than comparing
+scores produced under different experimental protocols.
+
+An earlier CSP leave-one-subject-out result could not be compared with
+EEGNet because the evaluation populations were different.
+
+For Week 12, CSP was therefore fitted using exactly the same training subjects
+and evaluated on exactly the same validation subjects as the neural networks.
+
+I also learned more about numerical and effective matrix rank.
+
+Common-average referencing creates an almost redundant channel-space direction
+because the channel average becomes approximately zero.
+
+The data can therefore still appear numerically full-rank because of tiny residuals while behaving as a rank-deficient signal for an algorithm such as CSP.
+
+Singular-value analysis helped distinguish numerical rank from effective rank.
+
+I also learned how differently the models represent EEG.
+
+CSP explicitly learns spatial filters whose variance separates the two classes.
+
+ShallowConvNet learns temporal and spatial filters followed by square,
+mean-pooling, and logarithmic operations that create power-like representations.
+
+EEGNet learns compact temporal-spatial features using depthwise and separable
+convolutions.
+
+The generic CNN contains much weaker EEG-specific structure.
+
+Finally, I learned that model selection should not be based only on whichever
+model produces the numerically highest validation score.
+
+### What confused me?
+
+One confusing part was why CSP failed despite the dataset still containing 64 EEG
+channels.
+
+The failure initially looked like a library or numerical problem.
+
+The array still contained 64 channels, but common-average referencing made one
+channel-space direction almost redundant.
+
+Another confusing result was that the weakest overall model could still be the
+best model for individual subjects.
+
+The generic CNN had the lowest overall validation performance, but still produced
+the highest mean subject-level BA for three validation subjects.
+
+I also had to distinguish between:
+
+**higher mean performance**
+
+and
+
+**more reliable performance**
+
+The constrained EEGNet produced the highest mean validation BA, but it also showed
+much greater variability across random seeds than Configuration D.
+
+A numerically higher mean therefore did not automatically make it the strongest
+model for the project's goal.
+
+---
+
+### What decision did I make?
+
+I selected **Configuration D EEGNet as the primary NeuroSignalLab model**.
+
+Its configuration is:
+
+- learning rate: `1e-3`
+- dropout: `0.50`
+- weight decay: `1e-4`
+- batch size: `32`
+- 30 training epochs
+- no max-norm constraints
+
+Configuration D achieved:
+
+**`0.628 ± 0.002` validation balanced accuracy**
+
+The constrained EEGNet achieved a slightly higher mean:
+
+**`0.634 ± 0.012`**
+
+However, the difference was only approximately `0.006` BA, while the constrained
+model showed substantially greater variability across random seeds.
+
+The constrained EEGNet also did not produce a uniform improvement across
+subjects.
+
+Its subject-level performance was extremely highly correlated with Configuration
+D:
+
+**`r = 0.971`**
+
+and it improved some subjects while worsening others.
+
+Therefore, the current evidence is not strong enough to conclude that the
+constrained model generalizes more reliably.
+
+Because the central goal of NeuroSignalLab is reliable cross-subject modeling, I
+prioritized reproducibility and stable performance.
+
+The final roles are:
+
+**Primary model:** Configuration D EEGNet
+
+**Secondary higher-ceiling model:** constrained EEGNet
+
+I also decided to stop broad architecture and hyperparameter searching.
+
+Continuing to optimize against the same 16 validation subjects would increasingly
+risk adapting the development process to the validation set.
+
+---
+
+### What limitation did I notice?
+
+The largest limitation remains inter-subject variability.
+
+Even the strongest models do not generalize equally well to every unseen person.
+
+Some validation subjects reached balanced accuracies above 0.90, while others
+remained close to chance.
+
+This pattern persisted across several different model families.
+
+Subject-level correlations were high between the EEG-specific models:
+
+- ShallowConvNet vs Configuration D: `r = 0.908`
+- ShallowConvNet vs constrained EEGNet: `r = 0.926`
+- Configuration D vs constrained EEGNet: `r = 0.971`
+
+CSP also showed substantial correlations with these models, around `0.80–0.82`.
+
+This suggests that some subjects are consistently easier or harder to decode
+regardless of representation.
+
+However, representation still matters.
+
+Some subjects that performed poorly with EEGNet improved with ShallowConvNet,
+CSP, or even the generic CNN.
+
+The remaining problem therefore cannot be described as purely architectural or
+purely subject-specific.
+
+Another major limitation is that the same 16 validation subjects have now been
+used repeatedly during model development.
+
+They have influenced decisions about:
+
+- architecture
+- learning rate
+- dropout
+- weight decay
+- max-norm
+- model-family comparison
+
+This means the validation set is now clearly part of the development process.
+
+The 17 held-out test subjects must therefore remain sealed until the development
+strategy is fully frozen.
+
+---
+
+### How does this connect to my larger goal?
+
+NeuroSignalLab is increasingly becoming a project about reliable neural-signal
+generalization rather than simply building a classifier.
+
+The progression has been:
+
+**Week 9**
+
+A generic CNN could almost memorize the training data but generalized poorly.
+
+**Week 10**
+
+EEGNet showed that an EEG-specific architecture could generalize substantially
+better.
+
+**Week 11**
+
+EEGNet performance was shown to be reproducible, and subject-level analysis
+revealed large inter-subject variability.
+
+**Week 12**
+
+Different representation families were compared directly under the same
+cross-subject protocol.
+
+The results showed that EEG-specific structure matters substantially.
+
+The progression in mean validation performance was approximately:
+
+`Generic CNN → CSP + LDA → ShallowConvNet → EEGNet`
+
+At the same time, model choice alone does not solve the complete problem.
+
+Some subjects remain difficult across several different representations.
+
+This moves the project toward the larger question:
+
+**How can neural signals be modeled reliably across people rather than merely
+fit well within the training population?**
+
+That question is much closer to the real challenge of building useful
+neurotechnology.
+
+---
+
+### What is the next step?
+
+Configuration D EEGNet is now the frozen primary development model.
+
+The constrained EEGNet remains a secondary higher-ceiling comparison.
+
+The next stage should move away from broad model searching and toward using,
+understanding, and communicating the selected model.
+
+The upcoming work should focus on:
+
+- reliable inference with Configuration D
+- saving and loading the selected model correctly
+- generating predictions on individual EEG trials
+- interpretability
+- understanding which temporal and spatial features drive predictions
+- investigating why certain subjects are consistently easier or harder
+- building the Streamlit interface around the finalized inference pipeline
+
+The held-out 17-subject test set will remain untouched until the planned final
+evaluation stage.
+
+## Week 13
 
 **What did I build this week?**
 
