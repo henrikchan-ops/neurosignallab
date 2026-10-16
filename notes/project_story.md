@@ -1601,7 +1601,47 @@ The upcoming work should focus on:
 The held-out 17-subject test set will remain untouched until the planned final
 evaluation stage.
 
-## Week 13
+## Week 13 — Inference Pipeline
+
+### What did I build this week?
+
+I turned the selected Configuration D EEGNet from a notebook experiment into a reusable inference pipeline.
+
+The model was retrained with the frozen seed-42 configuration and reproduced the previous result exactly:
+
+**Validation BA = 0.6277 at epoch 19**
+
+I saved the best model as a checkpoint and moved only the reusable components into `src`:
+
+- `models.py` contains EEGNet
+- `inference.py` loads the checkpoint and predicts individual EEG trials
+
+The inference pipeline reproduced the notebook logits, probabilities, and prediction exactly.
+
+I also verified the class mapping directly from preprocessing:
+
+- `0` = imagined left fist
+- `1` = imagined right fist
+
+### What did I learn?
+
+I learned the difference between training and inference.
+
+Training changes model weights using labeled data. Inference uses frozen weights to make predictions on new data.
+
+I also learned why a usable ML project needs more than a trained model: the preprocessing, model architecture, checkpoint metadata, and prediction logic must all remain consistent.
+
+### What decision did I make?
+
+I kept the reusable code deliberately small.
+
+Training and experimentation remain in notebooks, while only the finalized model and inference logic were moved into `src`.
+
+### What is the next step?
+
+Week 14 will build a Streamlit interface around the inference pipeline so that NeuroSignalLab can load EEG data, run the frozen EEGNet, and present its predictions in an understandable way.
+
+## Week 14
 
 **What did I build this week?**
 
