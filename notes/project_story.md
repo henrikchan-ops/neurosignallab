@@ -1641,7 +1641,38 @@ Training and experimentation remain in notebooks, while only the finalized model
 
 Week 14 will build a Streamlit interface around the inference pipeline so that NeuroSignalLab can load EEG data, run the frozen EEGNet, and present its predictions in an understandable way.
 
-## Week 14
+
+## Week 14 - Primitive Streamlit Dashboard
+
+### What did I build this week?**
+
+I built the first interactive NeuroSignalLab Streamlit app. It loads the frozen Configuration D EEGNet, lets the user select a preprocessed validation EEG trial, displays trial metadata and a single-channel EEG trace. The inference pipeline runs and shows the predicted motor-imagery class and left/right model outputs.
+
+### What did I learn technically?
+
+I learned how Streamlit turns a Python script into an interactive web application, how widgets trigger script reruns, and why `st.cache_resource` and `st.cache_data` are useful for avoiding repeated loading. I also learned how to keep the UI separate from the model and inference code.
+
+### What confused me?
+
+The main confusing parts were file-path handling between `app/`, `src/`, `models/`, and `results/`.
+
+### What decision did I make?
+
+I kept the first app intentionally small. It uses only known preprocessed validation trials and the existing inference pipeline. I did not add raw EDF uploads, retraining, duplicate EEGNet code, or access to the held-out test subjects.
+
+### What limitation did I notice?
+
+The current app is still a basic demo rather than a useful end-user application. Trial selection is based on existing processed examples, visualization is limited to one channel at a time, and the softmax outputs are not calibrated confidence estimates.
+
+### How does this connect to my larger goal?
+
+This turns NeuroSignalLab from a collection of experiments into something interactive. It establishes the foundation for eventually demonstrating not only what the model predicts, but also how it processes EEG and why its predictions may differ across subjects.
+
+### What is the next step?
+
+Week 15: add interpretability so I can begin investigating which parts of the EEG signal and which channels are influencing EEGNet's predictions.
+
+## Week 15
 
 **What did I build this week?**
 

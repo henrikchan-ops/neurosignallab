@@ -5833,3 +5833,174 @@ The documented implementation includes:
 - dropout
 
 Used as the implementation reference for the Week 12 ShallowConvNet experiment.
+
+## Week 14 — Streamlit and ML Inference
+
+### 1. Streamlit execution model
+
+A Streamlit app is a Python script.
+
+When the app first opens, Streamlit executes the script from top to bottom.
+When a user interacts with a widget, Streamlit normally reruns the script from
+top to bottom using the updated widget value.
+
+This is different from thinking of the interface as a permanently running object
+where only one small piece of code changes.
+
+For NeuroSignalLab this matters because expensive operations, such as loading the
+EEGNet checkpoint, should not be repeated unnecessarily on every interaction.
+
+Source: Streamlit documentation — Basic concepts and app model. [1, 2]
+
+---
+
+### 2. Caching the model
+
+Streamlit provides `st.cache_resource` for long-lived resources such as machine
+learning models.
+
+Without caching:
+
+app starts  
+→ load EEGNet  
+→ user changes widget  
+→ script reruns  
+→ load EEGNet again
+
+With `st.cache_resource`:
+
+app starts  
+→ load EEGNet once  
+→ cache model  
+→ user changes widget  
+→ script reruns  
+→ reuse cached EEGNet
+
+This reduces unnecessary loading time and memory use.
+
+`st.cache_resource` is specifically intended for resource objects such as ML
+models and database connections.
+
+Source: Streamlit documentation — Caching overview and `st.cache_resource`. [3, 4]
+
+---
+
+### 3. Separation of responsibilities
+
+
+The Streamlit app should mainly:
+
+1. collect or select input
+2. call the existing inference pipeline
+3. display the result
+
+Basically: 
+user interface  
+→ `predict_trial()`  
+→ EEGNet  
+→ prediction  
+→ user interface
+
+This keeps the presentation layer separate from the machine-learning logic.
+
+It also means the same inference code can later be used by another application
+without depending on Streamlit.
+
+### 4. Input contract
+
+The current EEGNet cannot accept arbitrary EEG data.
+
+It expects one trial that has already passed through the frozen NeuroSignalLab
+preprocessing pipeline:
+
+- 64 EEG channels
+- 481 time samples
+- sampling rate: 160 Hz
+- 7–30 Hz band-pass filtering
+- common-average reference
+- analysis window: +1 to +4 seconds
+- signal stored in volts
+
+The existing `predict_trial()` function then:
+
+trial  
+→ convert volts to microvolt scale  
+→ reshape into EEGNet input dimensions  
+→ forward pass  
+→ logits  
+→ softmax outputs  
+→ predicted class
+
+The first app should therefore use known preprocessed NeuroSignalLab trials.
+
+---
+
+### 5. Logits, softmax, and prediction probabilities
+
+EEGNet produces two raw outputs called logits.
+
+For example:
+
+Class 0 logit: `0.066`  
+Class 1 logit: `-0.088`
+
+Softmax transforms these into values between 0 and 1 that sum to 1:
+
+Class 0: `0.538`  
+Class 1: `0.462`
+
+The class with the highest softmax value becomes the predicted class.
+
+However, a softmax value should not automatically be interpreted as the real
+probability that the model is correct.
+
+Modern neural networks can be poorly calibrated, meaning that predicted
+probabilities and observed correctness rates do not necessarily match.
+
+For this reason, NeuroSignalLab should initially describe these values as:
+
+`Model output: 53.8% left / 46.2% right`
+
+rather than:
+
+`The model is 53.8% confident.`
+
+Source: Guo et al. (2017), *On Calibration of Modern Neural Networks*. [5]
+
+---
+
+### 6. Week 14 principle
+
+The Streamlit application is a presentation layer around the inference system
+built in Week 13.
+
+The first version should only:
+
+select a valid preprocessed EEG trial  
+→ display trial information  
+→ run Configuration D EEGNet  
+→ display predicted class  
+→ display left/right model outputs
+
+The goal is to make the existing inference system interactive, understandable,
+and easy to demonstrate.
+
+### References
+
+1. Streamlit. *Basic concepts of Streamlit*. Streamlit Documentation.  
+   https://docs.streamlit.io/get-started/fundamentals/main-concepts
+
+2. Streamlit. *App model summary*. Streamlit Documentation.  
+   https://docs.streamlit.io/get-started/fundamentals/summary
+
+3. Streamlit. *Caching overview*. Streamlit Documentation.  
+   https://docs.streamlit.io/develop/concepts/architecture/caching
+
+4. Streamlit. *st.cache_resource*. Streamlit API Reference.  
+   https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_resource
+
+5. Guo, C., Pleiss, G., Sun, Y., & Weinberger, K. Q. (2017).
+   *On Calibration of Modern Neural Networks*.
+   Proceedings of the 34th International Conference on Machine Learning,
+   PMLR 70:1321–1330.  
+   https://proceedings.mlr.press/v70/guo17a.html
