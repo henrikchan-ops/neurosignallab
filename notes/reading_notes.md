@@ -6098,3 +6098,242 @@ Schirrmeister, R. T., et al. (2017). *Deep learning with convolutional neural ne
 Cui, J., Yuan, L., Wang, Z., Li, R., & Jiang, T. (2023). *Towards best practice of interpreting deep learning models for EEG-based brain computer interfaces.* Frontiers in Computational Neuroscience, 17, 1232925.
 
 Captum documentation — Occlusion and attribution algorithms.
+
+## Week 16 — BCI and Neurorehabilitation Framing
+
+### 1) What is a brain-computer interface?
+
+A brain-computer interface (BCI) measures activity from the CNS and translates that activity into an output.
+
+A simplified BCI pipeline is:
+
+brain activity
+→ signal acquisition
+→ preprocessing
+→ feature extraction / decoding
+→ decision
+→ output
+
+Possible outputs include communication, control of a cursor or prosthesis, movement of a robotic device, functional electrical stimulation, or feedback to the user.
+
+A machine-learning classifier is only one component of a BCI.
+
+EEGNet represents the decoding stage of a possible BCI system.
+
+### 2) Offline versus online decoding
+
+Offline decoding analyzes EEG that has already been recorded.
+
+NeuroSignalLab currently operates offline:
+
+recorded EEG
+→ preprocessing
+→ fixed trial
+→ EEGNet
+→ prediction
+
+An online BCI instead processes EEG while the person is actively using the system:
+
+ongoing EEG
+→ real-time preprocessing
+→ continuous/windowed decoding
+→ output
+
+Moving from offline to online decoding introduces additional problems including latency, continuous windowing, artifacts, signal non-stationarity, calibration and repeated decision making.
+
+NeuroSignalLab is not currently an online BCI.
+
+### 3) Open-loop versus closed-loop systems
+
+A closed-loop BCI returns information or an action to the user based on detected brain activity.
+
+Example:
+
+motor imagery
+→ EEG
+→ decoder
+→ detected movement intention
+→ visual / robotic / electrical feedback
+→ user receives feedback
+→ next attempt
+
+Because the output can influence subsequent brain activity and behavior, the system forms a feedback loop.
+
+Online processing and closed-loop operation are related but are not identical. A system may process brain activity online without providing meaningful feedback to the user (open-loop).
+
+---
+
+### 4) Motor imagery versus motor attempt
+
+Motor imagery and motor attempt are different tasks.
+
+Motor imagery:
+Imagine moving the limb without trying to perform the movement.
+
+Motor attempt:
+Actively try to move the limb, even when neurological impairment prevents successful movement.
+
+Both paradigms are used in neurorehabilitation BCI research.
+
+NeuroSignalLab specifically studies motor imagery and should not be described as a motor-attempt decoder.
+
+---
+
+### 5) Why BCIs are interesting for neurorehabilitation
+
+After neurological injury such as stroke, the normal sensorimotor loop may be disrupted.
+
+Normally:
+
+motor intention
+→ motor command
+→ movement
+→ sensory feedback
+
+A person with severe motor impairment may still generate movement-related brain activity even when the intended movement cannot be successfully produced.
+
+A BCI can potentially detect this activity and generate external feedback:
+
+motor intention / imagery
+→ EEG
+→ BCI decoder
+→ feedback
+
+Feedback may include:
+
+- visual feedback
+- robotic or exoskeleton movement
+- functional electrical stimulation (FES)
+- haptic or proprioceptive feedback
+- virtual-reality feedback
+
+### 6) Functional electrical stimulation
+
+Functional electrical stimulation (FES) applies electrical stimulation to peripheral nerves or muscles to produce functional movement.
+
+In a BCI rehabilitation system:
+
+detected motor intention
+→ BCI
+→ FES
+→ muscle contraction / limb movement
+→ sensory feedback
+
+This provides a possible way of pairing cortical motor activity with movement and sensory input.
+
+
+### 7) Neuroplasticity and closed-loop rehabilitation
+
+Neuroplasticity is the nervous system's ability to change its functional organization and connectivity in response to activity, experience, training or injury.
+
+One proposed mechanism for BCI-based neurorehabilitation is repeated, contingent pairing:
+
+motor intention
++
+correct BCI detection
++
+timely sensory or motor feedback
+
+Repeated pairing may support activity-dependent plasticity and motor learning.
+
+However, this remains a hypothesis.
+
+---
+
+### 8) Decoder performance versus clinical effectiveness
+
+BCI decoding performance and rehabilitation effectiveness are not the same outcome.
+
+Decoder metrics include:
+
+- classification accuracy
+- balanced accuracy
+- sensitivity/specificity
+- information transfer measures
+
+Clinical outcomes may include:
+
+- motor impairment scores
+- hand or arm function
+- strength
+- activities of daily living
+- standardized scales 
+
+Higher decoding accuracy
+does not automatically mean
+better clinical recovery
+
+Clinical effectiveness must be tested directly in appropriate rehabilitation studies.
+
+### 10) Where NeuroSignalLab currently fits
+
+NeuroSignalLab is an offline research prototype for subject-independent motor-imagery EEG decoding.
+
+Current system:
+
+recorded EEG
+→ fixed preprocessing
+→ 3-second EEG trial
+→ EEGNet
+→ left/right prediction
+→ interpretability / visualization
+
+A complete online closed-loop BCI would additionally need:
+
+- live EEG acquisition
+- continuous real-time preprocessing
+- windowing of incoming EEG
+- low-latency inference
+- online decision logic
+- artifact handling
+- external output or device control
+- feedback to the user
+- repeated closed-loop operation
+
+### Neurorehabilitation framing for NeuroSignalLab
+
+The project's relevance to neurorehabilitation is that it studies motor-imagery EEG decoding and whether a model can generalize to unseen people.
+
+NeuroSignalLab explores the neural decoding component that could form part of a future motor-imagery BCI.
+
+## References
+
+Wolpaw JR, Birbaumer N, McFarland DJ, Pfurtscheller G, Vaughan TM.  
+Brain-computer interfaces for communication and control.  
+Clinical Neurophysiology. 2002;113(6):767–791.  
+doi:10.1016/S1388-2457(02)00057-3
+
+Wolpaw JR, Wolpaw EW.  
+Brain-computer interfaces: Definitions and principles.  
+Handbook of Clinical Neurology. 2020;168:15–23.  
+doi:10.1016/B978-0-444-63934-9.00002-0
+
+Pfurtscheller G, Lopes da Silva FH.  
+Event-related EEG/MEG synchronization and desynchronization: basic principles.  
+Clinical Neurophysiology. 1999;110(11):1842–1857.  
+doi:10.1016/S1388-2457(99)00141-8
+
+Khan MA, Das R, Iversen HK, Puthusserypady S.  
+Review on motor imagery based BCI systems for upper limb post-stroke neurorehabilitation: From designing to application.  
+Computers in Biology and Medicine. 2020;123:103843.  
+doi:10.1016/j.compbiomed.2020.103843
+
+Cervera MA, Soekadar SR, Ushiba J, et al.  
+Brain-computer interfaces for post-stroke motor rehabilitation: a meta-analysis.  
+Annals of Clinical and Translational Neurology. 2018;5(5):651–663.  
+doi:10.1002/acn3.544
+
+Fleury M, Lioi G, Barillot C, Lécuyer A.  
+A Survey on the Use of Haptic Feedback for Brain-Computer Interfaces and Neurofeedback.  
+Frontiers in Neuroscience. 2020;14:528.  
+doi:10.3389/fnins.2020.00528
+
+Kübler A, et al. / General BCI machine-learning principles:
+General principles of machine learning for brain-computer interfacing.  
+Handbook of Clinical Neurology. 2020.
+
+Additional useful review:
+
+Jin et al.  
+Electroencephalogram-based adaptive closed-loop brain-computer interface in neurorehabilitation: a review.  
+Frontiers in Computational Neuroscience. 2024.

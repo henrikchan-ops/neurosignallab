@@ -1724,6 +1724,66 @@ Move on from interpretability and understand how to develop neurosignallab into 
 
 ## Week 16
 
+### What did I build this week?
+
+This week was mainly conceptual. I framed NeuroSignalLab within a larger brain-computer interface and documented how the current decoder relates to potential neurorehabilitation applications.
+
+### What did I learn technically?
+
+I learned the difference between offline and online decoding, open-loop and closed-loop BCIs, and how motor imagery, ERD/ERS, feedback, and neuroplasticity fit into rehabilitation-oriented BCI systems.
+
+### What confused me?
+
+The main distinction I had to clarify was that a classifier is only one part of a BCI. NeuroSignalLab currently performs offline EEG decoding, but a real online BCI would also require live acquisition, continuous preprocessing, real-time decision making, and feedback.
+
+### What decision did I make?
+
+I decided not to turn NeuroSignalLab into a live BCI during this stage. The current project will remain focused on robust offline decoding and interpretation.
+
+### What limitation did I notice?
+
+Good decoding performance does not automatically imply clinical benefit. 
+
+### How does this connect to my larger goal?
+
+The project now has a clearer neurotechnology context. I understand how the decoder I built could form one component of a larger closed-loop BCI system.
+
+**What is the next step?**
+
+Move on to Week 17 and decide whether to reinforce the core motor-imagery project or begin the optional CHB-MIT extension.
+
+## Week 17
+
+### What did I build this week?
+
+I completed the final held-out evaluation of the frozen Configuration D EEGNet. The model was tested once on 17 previously unseen subjects containing 757 trials. I saved the overall metrics, per-subject results, trial-level predictions, a confusion matrix, and a subject-performance figure.
+
+### What did I learn technically
+
+I learned why a held-out test set must remain untouched until all model-development decisions are complete. I also saw the difference between validation performance and true final generalization. The model achieved a balanced accuracy of 0.5756 on the test set compared with 0.6277 on validation.
+
+### What confused me?
+
+I initially considered retraining the model on the combined training and validation subjects before testing. I learned that this would also be valid if the procedure were fixed in advance, but keeping the existing checkpoint made the final evaluation consistent with the model already used for inference, interpretability, and the Streamlit application.
+
+### What decision did I make?
+
+I kept the existing seed-42 Configuration D checkpoint and evaluated it without retraining. After observing the test results, I froze the model permanently and will not make further model-development decisions based on the test set.
+
+### What limitation did I notice?
+
+Generalization varied substantially between subjects. Subject balanced accuracy ranged from 0.458 to 0.801, and the model performed better on left-imagery trials than right-imagery trials. The final held-out performance was also lower than the validation result.
+
+### How does this connect to my larger goal?
+
+This gives NeuroSignalLab a genuine final evaluation. The project can now make a defensible claim about how the frozen model performed on completely unseen subjects.
+
+### What is the next step?
+
+Move from model development to final project completion: model-internals visualization if useful, limitations and ethics, technical report, deployment, README, and v1.0 release.
+
+## Week 18
+
 **What did I build this week?**
 
 **What did I learn technically?**

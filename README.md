@@ -6,6 +6,8 @@ EEG-based motor imagery decoding with public data sets, classic ML, deep learnin
 ## Medical Disclaimer
 This is a research and educational project for my own development. It is not a diagnostic tool, medical device or clincial support system. THe models and visualizations in this repository should not be used to diagnose, monitor, treat or predict neurological disease. 
 
+NeuroSignalLab is an offline research prototype for subject-independent motor-imagery EEG decoding. It implements the decoding component of a potential EEG-based BCI, but does not currently include live EEG acquisition, continuous real-time processing, device control, or closed-loop neurofeedback. Its neurorehabilitation relevance comes from studying motor-imagery decoding and cross-subject generalization rather than demonstrating a clinical rehabilitation intervention.
+
 ## Motivation
 I started NeuroSignallab because i wanted to learn how to translate biological signals into useful systems. 
 
