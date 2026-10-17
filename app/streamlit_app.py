@@ -1,4 +1,4 @@
-### Imports and paths
+### Setup
 import streamlit as st
 import sys
 from pathlib import Path
@@ -13,12 +13,27 @@ DATA_PATH = ROOT / "data" / "processed"
 sys.path.insert(0, str(ROOT/"src"))
 
 from neurosignallab.inference import load_eegnet, predict_trial
+from neurosignallab.interpretability import compute_channel_occlusion
 
 CHECKPOINT_PATH = (
     ROOT
     / "models"
     / "config_d_seed42_best.pt"
 )
+
+CHANNEL_NAMES = [
+    "FC5", "FC3", "FC1", "FCz", "FC2", "FC4", "FC6",
+    "C5", "C3", "C1", "Cz", "C2", "C4", "C6",
+    "CP5", "CP3", "CP1", "CPz", "CP2", "CP4", "CP6",
+    "Fp1", "Fpz", "Fp2",
+    "AF7", "AF3", "AFz", "AF4", "AF8",
+    "F7", "F5", "F3", "F1", "Fz", "F2", "F4", "F6", "F8",
+    "FT7", "FT8", "T7", "T8", "T9", "T10",
+    "TP7", "TP8",
+    "P7", "P5", "P3", "P1", "Pz", "P2", "P4", "P6", "P8",
+    "PO7", "PO3", "POz", "PO4", "PO8",
+    "O1", "Oz", "O2", "Iz"
+]
 
 ### Cache models + data
 @st.cache_resource
@@ -121,12 +136,67 @@ if run_model:
         f"Right: {result['probabilities'][1] * 100:.1f}%"
     )
 
-st.caption(
-    f"Model: {checkpoint['model_name']} | "
-    f"Device: {device}"
-)
+    ### Interpretability
+    st.subheader("Interpretability")
 
-### Plotting
+    st.write(
+        "Channel occlusion asks: which EEG channels most supported "
+        "the model's predicted class for this trial?"
+    )
+
+    channel_occlusion = compute_channel_occlusion(
+        model,
+        selected_trial,
+        checkpoint,
+        device,
+        result["prediction"]
+    )
+
+    top_channels = np.argsort(
+        channel_occlusion
+    )[::-1][:5]
+
+    st.write("Top 5 channels supporting this prediction:")
+
+    for channel_index in top_channels:
+        channel_name = CHANNEL_NAMES[channel_index]
+        effect = channel_occlusion[channel_index]
+
+        st.write(f"{channel_name} (index {channel_index}): "f"{effect:.3f}")
+
+    ### Bar plot 
+
+    top_10 = np.argsort(
+        channel_occlusion
+    )[::-1][:10]
+
+    top_10_names = [
+        CHANNEL_NAMES[index]
+        for index in top_10
+    ]
+
+    top_10_effects = channel_occlusion[
+        top_10
+    ]
+
+    fig, ax = plt.subplots()
+
+    ax.bar(
+        top_10_names,
+        top_10_effects
+    )
+
+    ax.set_xlabel("EEG channel")
+    ax.set_ylabel("Drop in predicted class logit")
+    ax.set_title(
+        "Channels supporting the prediction"
+    )
+
+    plt.xticks(rotation=45)
+
+    st.pyplot(fig)
+
+### Wave plot
 
 st.subheader("EEG signal")
 

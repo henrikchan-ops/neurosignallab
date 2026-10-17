@@ -5836,7 +5836,7 @@ Used as the implementation reference for the Week 12 ShallowConvNet experiment.
 
 ## Week 14 — Streamlit and ML Inference
 
-### 1. Streamlit execution model
+### 1) Streamlit execution model
 
 A Streamlit app is a Python script.
 
@@ -5854,7 +5854,7 @@ Source: Streamlit documentation — Basic concepts and app model. [1, 2]
 
 ---
 
-### 2. Caching the model
+### 2) Caching the model
 
 Streamlit provides `st.cache_resource` for long-lived resources such as machine
 learning models.
@@ -5885,7 +5885,7 @@ Source: Streamlit documentation — Caching overview and `st.cache_resource`. [3
 
 ---
 
-### 3. Separation of responsibilities
+### 3) Separation of responsibilities
 
 
 The Streamlit app should mainly:
@@ -5906,7 +5906,7 @@ This keeps the presentation layer separate from the machine-learning logic.
 It also means the same inference code can later be used by another application
 without depending on Streamlit.
 
-### 4. Input contract
+### 4) Input contract
 
 The current EEGNet cannot accept arbitrary EEG data.
 
@@ -5935,7 +5935,7 @@ The first app should therefore use known preprocessed NeuroSignalLab trials.
 
 ---
 
-### 5. Logits, softmax, and prediction probabilities
+### 5) Logits, softmax, and prediction probabilities
 
 EEGNet produces two raw outputs called logits.
 
@@ -5969,7 +5969,7 @@ Source: Guo et al. (2017), *On Calibration of Modern Neural Networks*. [5]
 
 ---
 
-### 6. Week 14 principle
+### 6) Week 14 principle
 
 The Streamlit application is a presentation layer around the inference system
 built in Week 13.
@@ -6004,3 +6004,97 @@ and easy to demonstrate.
    Proceedings of the 34th International Conference on Machine Learning,
    PMLR 70:1321–1330.  
    https://proceedings.mlr.press/v70/guo17a.html
+
+
+## Week 15 — Model Interpretability
+
+### 1) Goal
+
+Interpretability asks what aspects of an input influence a trained model's output. The aim is to investigate which channels and time points influence the Configuration D EEGNet predictions, without changing the model itself.
+
+Interpretability is not the same as proving neural causality. An attribution method can reveal that a model is sensitive to a feature, but this does not establish that the corresponding EEG activity is biologically causal or meaningful.
+
+### 2) Local and global interpretation
+
+A local explanation describes one particular prediction. For example, a saliency map can show which parts of one EEG trial influenced EEGNet's predicted class.
+
+A global interpretation is what the model tends to use across many examples. This requires aggregating results across trials, classes, subjects, or other meaningful groups. 
+
+### 3) Target of an explanation
+
+A neural-network classifier produces logits before softmax.
+
+For a target class c, interpretability can study the class logit: z_c(x) rather than the final softmax percentage.
+
+For a prediction-specific explanation, the natural initial target is the model's predicted class. For misclassified examples, the predicted-class and true-class outputs can later be compared.
+
+### 4) Gradient saliency
+
+Input-gradient saliency calculates:
+
+\[
+\frac{\partial z_c}{\partial x}
+\]
+
+for the target class \(c\).
+
+The resulting tensor has the same input dimensions as the EEG trial. A large gradient magnitude means that a small local change in that input value could strongly change the target class score.
+
+A gradient is a measure of local sensitivity. Absolute gradient magnitude can be used when the main question is “where is the model sensitive?”, while signed gradients distinguish changes that locally increase or decrease a target score.
+
+### 5) Integrated Gradients
+
+Integrated Gradients computes gradients along a path between a reference or baseline input and the observed input, rather than looking only at the gradient at the final input.
+
+Sundararajan et al. introduced Integrated Gradients using two desired attribution properties: Sensitivity and Implementation Invariance.
+
+The baseline is important because attribution is measured relative to that reference. A zero baseline is therefore not automatically a neutral or biologically perfect representation of “no EEG.”
+
+### 6) Occlusion
+
+Occlusion is a perturbation-based interpretation method.
+
+A region of the input is replaced with a baseline value and the model is run again:
+
+Useful perturbations include:
+
+- occluding one channel at a time
+- occluding one temporal window at a time
+
+If removal of a region causes a substantial reduction in the target score, the prediction was sensitive to information contained in that region.
+
+Occlusion has limitations. Results depend on the baseline and the size of the occluded region, and artificial perturbations can produce inputs unlike naturally occurring EEG.
+
+### 7) Interpretability checks
+
+An explanation should depend on the trained model it claims to explain.
+
+Visually plausible attribution maps are not sufficient evidence. If an explanation remains almost unchanged after model randomization, it may be because of the input or architecture rather than what the trained model learned.
+
+### 8) EEG-specific caution
+
+Interpretation should be performed across multiple trials and subjects.
+
+Subject-level variability in decoding performance is substantial, so interpretation should investigate whether attribution patterns are subject-dependent.
+
+
+### 9) Week 15 design principle
+Interpretability is an analysis layer around the existing model:
+
+EEG trial  
+→ frozen EEGNet  
+→ prediction  
+→ attribution analysis  
+→ channel/time interpretation
+
+### 10) References
+
+Sundararajan, M., Taly, A., & Yan, Q. (2017). *Axiomatic Attribution for Deep Networks.* Proceedings of the 34th International Conference on Machine Learning, 70, 3319–3328.
+
+Adebayo, J., Gilmer, J., Muelly, M., Goodfellow, I., Hardt, M., & Kim, B. (2018). *Sanity Checks for Saliency Maps.* Advances in Neural Information Processing Systems, 31.
+
+Schirrmeister, R. T., et al. (2017). *Deep learning with convolutional neural networks for EEG decoding and visualization.* Human Brain Mapping, 38, 5391–5420.
+
+Cui, J., Yuan, L., Wang, Z., Li, R., & Jiang, T. (2023). *Towards best practice of interpreting deep learning models for EEG-based brain computer interfaces.* Frontiers in Computational Neuroscience, 17, 1232925.
+
+Captum documentation — Occlusion and attribution algorithms.

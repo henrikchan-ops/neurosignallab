@@ -1676,6 +1676,56 @@ Week 15: add interpretability so I can begin investigating which parts of the EE
 
 **What did I build this week?**
 
+I added interpretability to the frozen Configuration D EEGNet model. I implemented gradient saliency, channel occlusion, and temporal occlusion, then moved the verified functions into `src/neurosignallab/interpretability.py`.
+
+I also analyzed the model across validation subjects and created scalp topomaps showing the spatial pattern of channel occlusion. Finally, I added channel occlusion to the Streamlit app so individual predictions now show which EEG channels most strongly supported the model output.
+
+### What did I learn technically?
+
+I learned that interpretability methods answer different questions.
+
+Gradient saliency measures how sensitive a model output is to small changes in the input. Channel occlusion instead removes one channel at a time and measures how much the target-class logit changes.
+
+I also learned how to aggregate results across subjects without letting subjects with more trials dominate the analysis by first averaging within each subject and then averaging across subjects.
+
+The strongest pattern was lateralized: correct left-imagery predictions depended most strongly on channels such as CP3 and C3, while correct right-imagery predictions depended most strongly on CP4 and C4.
+
+### What confused me?
+
+At first, it was confusing why an untrained random EEGNet could still produce saliency values. I learned that a randomly initialized neural network still produces logits and gradients when given an input, even though those outputs are not meaningful classifications.
+
+I also had to understand why the trained model first selected the target class before comparing trained and random saliency. This ensured that both networks were explaining the same output neuron.
+
+### What decision did I make?
+
+I decided to keep the interpretability pipeline simple rather than adding more advanced methods.
+
+Channel occlusion became the main interpretability method because it produced the clearest and easiest-to-understand spatial patterns. Gradient saliency was kept as a complementary method and sanity-checked using random model weights.
+
+For the Streamlit app, I chose to show a simple top-channel list and bar plot rather than immediately adding more complicated scalp maps or saliency heatmaps.
+
+### What limitation did I notice?
+
+Interpretability does not prove causal brain activity.
+
+Occlusion only shows how the model output changes when an input channel is removed. The scalp topomaps also interpolate between electrodes and are not source-localization maps.
+
+The random-weight sanity check was also limited because I used one randomly initialized model rather than a full formal parameter-randomization study.
+
+### How does this connect to my larger goal?
+
+The project is no longer only able to classify EEG trials. I can now inspect what the neural network appears to rely on when making a decision.
+
+This moves NeuroSignalLab closer to being a neurotechnology project combining EEG preprocessing, deep learning, evaluation, interpretability, and an interactive interface.
+
+**What is the next step?**
+
+Move on from interpretability and understand how to develop neurosignallab into a live BCI. Also understanding how motor imagery and live BCI can be used in neurological rehabilitation. 
+
+## Week 16
+
+**What did I build this week?**
+
 **What did I learn technically?**
 
 **What confused me?**
