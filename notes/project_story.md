@@ -1782,7 +1782,58 @@ This gives NeuroSignalLab a genuine final evaluation. The project can now make a
 
 Move from model development to final project completion: model-internals visualization if useful, limitations and ethics, technical report, deployment, README, and v1.0 release.
 
-## Week 18
+## Week 18 - Fourier transform
+
+### What did I build this week?
+
+I inspected the internal temporal filters learned by the frozen EEGNet and created the project's final limitations, ethics, and claims-audit
+documents.
+
+### What did I learn technically?
+
+I learned how the weights of a convolutional kernel form a learned
+temporal filter, and how its Fourier magnitude response can be used to
+inspect frequency sensitivity. The eight first-layer EEGNet filters
+showed different response profiles within the 7–30 Hz input band, with
+peak responses distributed approximately between 12 and 28 Hz.
+
+I also learned the importance of separating measured results, supported
+interpretations, limitations, and possible future applications when
+communicating machine-learning results.
+
+### What confused me?
+
+I initially had to distinguish between the magnitude response of a
+learned filter and the power or amplitude spectrum of the EEG itself.
+The frequency-response plots describe properties of the network weights,
+not the frequency content of an EEG trial. 
+
+### What decision did I make?
+
+I decided to stop further model analysis after the temporal-filter
+inspection. The remaining project work will focus on scientific writing,
+deployment, reproducibility, and presentation rather than additional
+model development.
+
+### What limitation did I notice?
+
+The learned filters cannot be assigned specific physiological identities simply because their frequency overlap known EEG bands. The kernels are short, and the model's internal representations involve multiple interacting layers.
+
+The project must distinguish between decoding performance and claims about physiology, clinical usefulness, or rehabilitation.
+
+### How does this connect to my larger goal?
+
+The project now contains both an empirical evaluation of generalization
+and several ways of inspecting what the trained network learned. The
+claims audit also gives me a framework for presenting the project
+accurately in a technical report, GitHub repository, portfolio, and CV.
+
+### What is the next step?
+
+Write the 3–5 page technical report using the results, figures, project notes, interpretability analyses, and
+limitations documents.
+
+## Week 19
 
 **What did I build this week?**
 

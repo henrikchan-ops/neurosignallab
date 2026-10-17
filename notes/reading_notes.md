@@ -6296,7 +6296,7 @@ The project's relevance to neurorehabilitation is that it studies motor-imagery 
 
 NeuroSignalLab explores the neural decoding component that could form part of a future motor-imagery BCI.
 
-## References
+### References
 
 Wolpaw JR, Birbaumer N, McFarland DJ, Pfurtscheller G, Vaughan TM.  
 Brain-computer interfaces for communication and control.  
@@ -6337,3 +6337,150 @@ Additional useful review:
 Jin et al.  
 Electroencephalogram-based adaptive closed-loop brain-computer interface in neurorehabilitation: a review.  
 Frontiers in Computational Neuroscience. 2024.
+
+## Week 18 - Learned convolutional filters
+
+### What is a convolutional kernel?
+
+A convolutional neural network learns small arrays of weights called
+kernels or filters.
+
+For a one-dimensional EEG signal, a temporal convolutional filter moves
+across time and computes a weighted combination of nearby samples.
+
+Basically: 
+EEG signal
+→ small learned temporal kernel
+→ convolution
+→ feature map
+
+The kernel weights determine which local temporal patterns produce a
+strong response.
+
+Unlike a manually designed signal-processing filter, the neural-network
+kernel is not chosen beforehand. Its weights are learned through
+backpropagation to improve the classification objective.
+
+---
+
+### EEGNet's first temporal convolution
+
+In NeuroSignalLab, the first EEGNet convolution operates across time.
+
+The current model uses:
+
+- 8 temporal filters
+- kernel length = 40 samples
+- sampling rate = 160 Hz
+
+Therefore each kernel spans:
+
+40 / 160 = 0.25 seconds
+
+Each learned temporal kernel can be thought of as a short digital filter.
+
+The network learns these filters from the training data.
+
+### Time-domain weights versus frequency response
+
+A learned kernel can be inspected directly as a sequence of weights in
+the time domain.
+
+However, it can also be transformed into the frequency domain using a
+Fourier transform.
+
+Time-domain kernel:
+
+weights changing across 40 samples
+
+↓ Fourier transform
+
+Frequency-domain representation:
+
+how strongly that kernel responds to different frequencies -> used to find where high and low frequencies are in an EEG signal. However, when the kernel is learned like this, the kernel instead works to extract the features used to determine what signal it is. For instance, sensitivities around mu rhythm.  
+
+The magnitude of the Fourier transform is often called the magnitude
+frequency response.
+
+This can help answer:
+
+Which frequencies is this learned temporal filter relatively sensitive to?
+
+---
+
+### Why use the Fourier transform?
+
+A temporal pattern can be represented as a combination of sinusoidal
+components at different frequencies.
+
+The Fourier transform converts a signal from:
+
+time
+→ frequency
+
+For a convolutional kernel, this allows us to visualize whether its
+weights behave approximately like:
+
+- a low-frequency filter
+- a higher-frequency filter
+- a band-selective filter
+- a more complex filter
+
+The same mathematical idea is used for ordinary digital filters.
+
+---
+
+### Important interpretation limit
+
+The Fourier response of a learned EEGNet kernel does NOT prove that the
+network has learned a physiological EEG rhythm.
+
+Why?
+
+Because:
+
+- the kernel is short
+- several filters interact
+- later network layers transform the features
+- the network was optimized for classification, not physiological
+  interpretability
+- spectral overlap with a known EEG rhythm does not establish that the
+  model is using that physiological mechanism
+
+### Relationship to Week 15 interpretability
+
+Week 15 asked:
+
+> Which parts of an input trial influence the model's output?
+
+Methods:
+
+- gradient saliency
+- channel occlusion
+- temporal occlusion
+
+Learned-filter inspection asks a different question:
+
+> What transformations did an internal neural-network layer learn?
+
+Both help us understand the network from different perspectives.
+
+---
+
+### What NeuroSignalLab will inspect
+
+For the frozen Configuration D EEGNet, we will:
+
+1. extract the eight learned kernels from the first temporal convolution
+2. visualize their weights in the time domain
+3. calculate their frequency responses with the Fourier transform
+4. inspect which frequencies each kernel emphasizes
+
+
+### Reference
+
+Lawhern, V. J., Solon, A. J., Waytowich, N. R., Gordon, S. M.,
+Hung, C. P., & Lance, B. J. (2018).
+EEGNet: a compact convolutional neural network for EEG-based
+brain-computer interfaces.
+Journal of Neural Engineering, 15(5), 056013.
