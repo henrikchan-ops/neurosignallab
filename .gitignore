@@ -217,6 +217,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Model checkpoints
+models/*.pt
+!models/config_d_seed42_best.pt
+
 #Extra
 .DS_Store
 .ipynb_checkpoints/
@@ -225,5 +229,4 @@ data/external/
 *.edf
 
 data/processed/*.npy
-data/processed/*.npy
-models/*.pt
+data/MNE-eegbci-data/

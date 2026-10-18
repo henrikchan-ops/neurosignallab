@@ -3,7 +3,10 @@ numpy
 pandas
 matplotlib
 scikit-learn
+scipy
 mne
+torch
+braindecode
 jupyter
 ipykernel
 streamlit

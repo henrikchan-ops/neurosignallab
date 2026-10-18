@@ -62,19 +62,13 @@ class EEGNet(nn.Module):
             nn.AvgPool2d((1, 8)),
             nn.Dropout(dropout_p)
         )
-
-        self.classifier = nn.Linear(
-            F2 * 15,
-            n_classes
-        )
+        #481 samples to 15 positions after pooling
+        self.classifier = nn.Linear(F2 * 15, n_classes)
 
     def forward(self, x):
         x = self.block1(x)
         x = self.block2(x)
 
-        x = torch.flatten(
-            x,
-            start_dim=1
-        )
+        x = torch.flatten(x, start_dim=1)
 
         return self.classifier(x)

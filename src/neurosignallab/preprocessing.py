@@ -20,10 +20,7 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
 
     for run, raw_fname in zip(runs, raw_fnames):
 
-        raw_run = mne.io.read_raw_edf(
-            raw_fname,
-            preload=True
-        )
+        raw_run = mne.io.read_raw_edf(raw_fname,preload=True)
 
         # Standardize EEG channel information
         eegbci.standardize(raw_run)
@@ -34,9 +31,7 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
             raw_run.resample(160.0)
 
         # Extract motor-imagery events for metadata
-        run_events, run_event_id = (
-            mne.events_from_annotations(raw_run)
-        )
+        run_events, run_event_id = (mne.events_from_annotations(raw_run))
 
         motor_events_run = run_events[
             (run_events[:, 2] == run_event_id["T1"])
@@ -44,10 +39,7 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
             (run_events[:, 2] == run_event_id["T2"])
         ]
 
-        for trial_in_run, event in enumerate(
-            motor_events_run,
-            start=1
-        ):
+        for trial_in_run, event in enumerate(motor_events_run,start=1):
 
             event_code = event[2]
 
@@ -72,24 +64,14 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
     # Runs must use identical EEG channels
     reference_channels = raws[0].ch_names
 
-    if not all(
-        raw_run.ch_names == reference_channels
-        for raw_run in raws[1:]
-    ):
-        raise ValueError(
-            f"Channel mismatch for subject {subject}"
-        )
+    if not all(raw_run.ch_names == reference_channels for raw_run in raws[1:]):
+        raise ValueError(f"Channel mismatch for subject {subject}")
 
     # Concatenate runs
-    raw = mne.concatenate_raws(
-        [raw_run.copy() for raw_run in raws]
-    )
+    raw = mne.concatenate_raws([raw_run.copy() for raw_run in raws])
 
     # Average reference
-    raw.set_eeg_reference(
-        "average",
-        projection=True
-    )
+    raw.set_eeg_reference("average",projection=True)
 
     # Motor-imagery frequency range
     raw.filter(
@@ -100,9 +82,7 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
     )
 
     # Extract events from concatenated recording
-    events, event_id = (
-        mne.events_from_annotations(raw)
-    )
+    events, event_id = (mne.events_from_annotations(raw))
 
     motor_event_id = {
         "left": event_id["T1"],
@@ -138,20 +118,10 @@ def preprocess_subject(subject, data_dir, runs=(4, 8, 12)):
     )
 
     # Machine-learning window: +1 to +4 s
-    epochs_ml = epochs.copy().crop(
-        tmin=1.0,
-        tmax=4.0
-    )
+    epochs_ml = epochs.copy().crop(tmin=1.0,tmax=4.0)
 
     X = epochs_ml.get_data()
 
-    y = (
-        epochs_ml.metadata["class_label"]
-        .map({
-            "left": 0,
-            "right": 1
-        })
-        .to_numpy()
-    )
+    y = (epochs_ml.metadata["class_label"].map({"left": 0,"right": 1}).to_numpy())
 
     return X, y, epochs_ml.metadata.copy()

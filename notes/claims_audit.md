@@ -108,19 +108,19 @@ NeuroSignalLab investigates subject-independent classification of left-versus-ri
 
 **Category:** SUPPORTED INTERPRETATION
 
-**Status:** PARTIALLY APPROVED
+**Status:** APPROVED
 
 The final model was evaluated on 17 previously unseen test subjects.
 
 However, performance was modest and highly variable between subjects.
 
-The frozen EEGNet retained measurable classification performance on previously unseen subjects, although substantial subject-to-subject variability remained. Not every subject was determined with certainty and some subjects were not generalized at all. However, with a balanced accuracy above 50%,, its reasonable to say that some features of the subjects were generalizable. 
+The frozen EEGNet retained measurable classification performance on previously unseen subjects, although substantial subject-to-subject variability remained. However, as performance varied, we cannot claim that the model generalized equally to all subjects
 
 # 2. Final held-out test performance
 
 ### Claim
 
-"The final held-out balanced accuracy was 57.6%."
+"The final held-out balanced accuracy was lower than the validation balanced accuracy"
 
 **Category:** MEASURED RESULT
 
@@ -350,7 +350,7 @@ around channels including:
 - CP3 / C3 for correct left predictions
 - CP4 / C4 for correct right predictions
 
-Channel occlusion showed reproducible class-dependent model sensitivity around centro-parietal electrodes.
+Channel occlusion showed class-dependent model sensitivity around centro-parietal electrodes.
 
 ### Claim
 
@@ -583,7 +583,7 @@ Appropriate examples:
 
 > Developed and evaluated EEGNet using subject-level train/validation/test separation, multi-seed reproducibility analysis, interpretability, and a held-out 17-subject final evaluation.
 
-> Built a Streamlit research demo integrating frozen EEGNet inference EEG visualization, and channel-occlusion interpretability.
+> Built a Streamlit research demo integrating EEGNet inference, EEG visualization, and channel-occlusion interpretability.
 
 Use the exact final performance number only when useful:
 

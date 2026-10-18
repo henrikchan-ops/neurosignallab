@@ -29,7 +29,7 @@ def compute_saliency(model, trial, checkpoint, device, target_class):
     return saliency
 
 
-def compute_channel_occlusion(model, trial, checkpoint, device,target_class):
+def compute_channel_occlusion(model, trial, checkpoint, device, target_class):
     
     original_result = predict_trial(model, trial, checkpoint, device)
 
@@ -43,7 +43,7 @@ def compute_channel_occlusion(model, trial, checkpoint, device,target_class):
 
         occluded_trial[channel_index] = 0.0
 
-        occluded_result = predict_trial(model,occluded_trial,checkpoint,device)
+        occluded_result = predict_trial(model, occluded_trial, checkpoint, device)
 
         occluded_logit = occluded_result["logits"][target_class]
 
@@ -54,7 +54,7 @@ def compute_channel_occlusion(model, trial, checkpoint, device,target_class):
 
 def compute_temporal_occlusion(model,trial,checkpoint,device,target_class,window_size=40):
 
-    original_result = predict_trial(model,trial,checkpoint,device)
+    original_result = predict_trial(model, trial, checkpoint, device)
 
     original_logit = original_result["logits"][target_class]
 
@@ -69,7 +69,7 @@ def compute_temporal_occlusion(model,trial,checkpoint,device,target_class,window
 
         occluded_trial[:,start:end] = 0.0
 
-        occluded_result = predict_trial(model,occluded_trial,checkpoint,device)
+        occluded_result = predict_trial(model, occluded_trial, checkpoint, device)
 
         occluded_logit = occluded_result["logits"][target_class]
 
@@ -83,5 +83,5 @@ def compute_temporal_occlusion(model,trial,checkpoint,device,target_class,window
 
         times.append(center_time)
 
-    return (np.array(effects),np.array(times))
+    return (np.array(effects), np.array(times))
 

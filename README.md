@@ -1,511 +1,649 @@
 # NeuroSignalLab
 
-## Overview
-EEG-based motor imagery decoding with public data sets, classic ML, deep learning, and interpretability tools. 
+**Subject-independent motor-imagery EEG decoding using classical machine learning, EEG-specific deep learning, and model interpretability.**
 
-## Medical Disclaimer
-This is a research and educational project for my own development. It is not a diagnostic tool, medical device or clincial support system. THe models and visualizations in this repository should not be used to diagnose, monitor, treat or predict neurological disease. 
+NeuroSignalLab is an offline EEG-decoding research project exploring how reliably models can distinguish imagined left- versus right-fist movement in people who were not seen during training.
 
-NeuroSignalLab is an offline research prototype for subject-independent motor-imagery EEG decoding. It implements the decoding component of a potential EEG-based BCI, but does not currently include live EEG acquisition, continuous real-time processing, device control, or closed-loop neurofeedback. Its neurorehabilitation relevance comes from studying motor-imagery decoding and cross-subject generalization rather than demonstrating a clinical rehabilitation intervention.
+The project follows a complete machine-learning pipeline:
 
-## Motivation
-I started NeuroSignallab because i wanted to learn how to translate biological signals into useful systems. 
+**EEG data → preprocessing → subject-independent evaluation → model comparison → frozen inference → held-out testing → interpretability**
 
-As a medical student i am learning how the physiology of the nervous system works. As an informatics student I am learning how to translate this complex data into usable computational tools.
+The final system uses a compact EEGNet model and includes a Streamlit research demo, reusable inference code, saved evaluation results, and a technical report.
+
+**Final result:** 57.6% balanced accuracy across 757 trials from 17 previously unseen subjects.
+
+![NeuroSignalLab analysis pipeline](figures/figure1_pipeline.png)
+
+---
+
+## Why I built this
+
+I started NeuroSignalLab because I wanted to understand how biological signals can be translated into computational systems.
+
+As a medical student, I am learning how the nervous system works physiologically. As an informatics student, I am learning how complex data can be modeled computationally.
 
 Through my research at a neurophysiology lab, I learned how to study brain signals and connectivity patterns quantitatively, which furthered my curiousity in combining these two interests into a concrete technical project. 
 
-Therefore, I want to build software that can process, visualize and interpret noisy EEG dta in a reproducible way.
+Rather than only training a classifier, I wanted to understand the entire process:
 
+- how EEG should be preprocessed,
+- how evaluation design changes apparent performance,
+- how classical and neural approaches compare,
+- how well models transfer between people,
+- how reproducible neural-network results are,
+- and what interpretability methods can and cannot tell us about a trained model.
 
-## Research Question
+---
 
-How reliably can classical machine-learning and EEG deep-learning models decode motor-imagery states from open EEG records?
+## Research questions
 
-What do preprocessing, evaluation design, and interpretability reveal about the limits of applying EEG machine-learning to neurotechnology or clinical contexts?
+NeuroSignalLab was built around two questions:
 
-This project uses open EEG datasets to build a reproducible pipeline for loading, preprocessing, visualizing, classifying, and interpreting brain-signal data. The goal is not only to compare model performance, but also to understand the practical challenges of EEG-based machine learning, including subject variability, data leakage, model interpretability, and clinical limitations.
+1. **How reliably can classical machine-learning and EEG-specific deep-learning models decode left-versus-right motor imagery from open EEG recordings?**
+
+2. **What do preprocessing, subject-independent evaluation, and model analysis reveal about the limits of EEG machine learning?**
+
+The focus is on understanding generalization, reproducibility, and model limitations.
+
+---
 
 ## Dataset
 
-The repository does not include the full raw EEG datasets used in this project. 
+The project uses the **PhysioNet EEG Motor Movement/Imagery Dataset (EEGMMIDB)**.
 
-Users should download datasets directly from the original sources: 
+The final analysis contains:
 
-- PhysioNet EEG Motor Movement/Imagery Dataset
-- CHB-MIT Scalp EEG Database (SUBJECT TO REMOVAL)
+| Dataset property | Value |
+|---|---:|
+| Subjects | 109 |
+| EEG channels | 64 |
+| Motor-imagery runs | 4, 8, 12 |
+| Classes | Imagined left fist / imagined right fist |
+| Processed trials | 4,898 |
+| Sampling rate | 160 Hz |
 
-- Only small sample files are included for demonstration purposes
+For the selected motor-imagery runs:
+
+- `T1` → imagined left fist → class `0`
+- `T2` → imagined right fist → class `1`
+- `T0` → rest → not used as a classification class
+
+The full raw EEG dataset is not redistributed in this repository.
+
+Dataset source:
+
+**PhysioNet EEG Motor Movement/Imagery Dataset**  
+https://physionet.org/content/eegmmidb/1.0.0/
 
 ## License
 This project´s source code is licensed under the MIT License. 
 
 The datasets in this project are not redistributed in this repository. The datasets are governed by their own original licenses, access conditions and citation requirements. Please refer to the original dataset providers for dataset access, citation requirements and terms of use. 
 
-## Planned Methods
+## Preprocessing
 
-This project will build a reproducible EEG machine-learning pipeline for motor-imagery brain-computer interface exploration, with an optional clinical EEG extension using seizure data.
+The final preprocessing pipeline was locked before model selection.
 
-### 1. EEG Data Loading and Metadata verification
+Each recording was processed using:
 
-The first stage will use a MNE-Python file to load EEG recordings from open datasets such as the PhysioNet EEG Motor Movement/Imagery dataset. I will inspect sampling frequency, channel names, recording duration, amount of channels, annotations/events, and plot raw EEG for artefacts.
+- all 64 EEG channels
+- common-average reference
+- 7–30 Hz FIR band-pass filtering
+- task epochs from −1 to +4 s
+- model input window from +1 to +4 s
+- no voltage baseline correction
+- sampling rate of 160 Hz
+- final trial shape: `64 × 481`
 
-Before preprocessing, I will verify that selected recordings contain the expected EEG channels and electrodes, and create files including subject ID, snippet/session ID, sampling frequency, channel name, event label, recording duration and electrode names. 
+The saved EEG arrays remain in volts. Neural-network inputs are in microvolt.
 
-### 2. Preprocessing
+Subject 88 originally contained a different sampling rate and was harmonized before event extraction.
 
-The EEG data will be loaded and preprocessed by selecting relevant EEG channels, applying bandpass filtering, extracting task-related events, and converting raw continious EEG recordings into fixed-length epochs suitable for machine-learning models.
+Six previously identified irregular recordings were flagged rather than removed:
 
-For motor imagery, the initial preprocessing will focus on frequency ranges commonly associated with sensorimotor rhythms, especially the mu/alpha and beta bands.
+`S088, S089, S092, S100, S104, S106`
 
-### 3. Manual interpretation
+No subject was excluded because of poor model performance.
 
-Before ML models and deep learning, I will extract and interpret EEG features such as channel variance, bandpower, power spectral density features, and potentially Common Spatial Pattern features. This is how EEG is typically interpreted in labs. 
+## Subject-independent evaluation
 
-These baselines will be used to train classical ML models and provide a comparison point for later deep-learning models.
+A major goal of NeuroSignalLab was to avoid leakage between people.
 
-### 4. Classical Machine-Learning Models
+Subjects rather than individual EEG trials were divided into:
 
-I will train simple classifiers such as logistic regression, random forest, and/or support vector machines using scikit-learn. These models will help establish whether the preprocessing and feature extraction pipeline contains useful signal.
+| Split | Subjects | Trials |
+|---|---:|---:|
+| Training | 76 | 3,423 |
+| Validation | 16 | 718 |
+| Test | 17 | 757 |
+| **Total** | **109** | **4,898** |
 
-### 5. Deep-Learning Models
+The split was created using seed `42`.
 
-After building classical baselines, I will train a simple convolutional neural network on EEG epochs. I will then compare this with an EEGNet-style model using PyTorch and/or Braindecode.
+The 17 test subjects were kept completely separate during development.
 
-The goal is not only to maximize accuracy, but to understand how deep-learning models handle EEG signals compared with simpler baselines.
+The test cohort was opened only after the Configuration D EEGNet was trained on seed 42, and the checkpoint had been locked.
 
-### 6. Evaluation
+## Evaluation design matters
 
-The project will compare "naive random splits" with more realistic session-wise or subject-wise evaluation. EEG models can appear artificially strong if data from the same subject or session leaks into both training and testing sets.
+Before training the final deep-learning models, CSP + LDA was used to investigate how evaluation design affected performance.
 
-Metrics will include accuracy, balanced accuracy, F1 score, confusion matrix, and per-class performance.
+| Evaluation | Mean balanced accuracy |
+|---|---:|
+| Within-subject run-wise | 0.597 |
+| Fixed cross-subject | 0.565 |
+| Nested tuned cross-subject | 0.575 |
 
-### 7. Visualization and Dashboard
+The within-subject to cross-subject decrease was approximately **3.2 percentage points** (`p = 0.0044`).
 
-I will build visualizations of raw EEG signals, filtered signals, power spectra, spectrograms, model predictions, and evaluation results. These will later be integrated into a Streamlit dashboard.
+Nested CSP tuning increased mean cross-subject BA by approximately **1 percentage point**, but the improvement was not statistically significant (`p = 0.1582`).
 
-### 8. Interpretability
+These experiments used a different evaluation setup from the later train/validation/test model comparison and are reported separately.
 
-The project will explore simple interpretability methods such as saliency maps and occlusion sensitivity to visualize which EEG channels or time segments most influenced the model prediction.
+## Model development
 
-These visualizations will be treated as tools, not as proof of true causation.
+Five model configurations were compared during development:
 
-### 9. Optional Clinical EEG Extension
+### CSP + LDA
 
-If the main motor-imagery pipeline is stable, I will add an exploratory seizure-detection extension using the CHB-MIT scalp EEG dataset. This extension will be presented carefully as an educational/research exploration, not as a diagnostic system.
+A classical EEG baseline using **Common Spatial Patterns** for spatial feature extraction followed by Linear Discriminant Analysis.
 
-### 10. Reproducibility
+Because common-average referencing makes one channel-space direction effectively redundant, CSP was fitted with EEG rank `63`.
 
-The project will be organized into notebooks, reusable Python scripts, saved configurations, saved metrics, and a clear technical report so that the analysis can be inspected and repeated.
+### Generic CNN
 
-## Expected Deliverables
+A simple 1D convolutional network consisting of:
 
-By the end of this project, NeuroSignalLab aims to include the following deliverables:
+- two temporal convolution layers
+- ReLU activations
+- max pooling
+- final linear classifier
 
-### 1. EEG Data Loading and Metadata File Creation
+This model intentionally contained less EEG-specific architectural structure.
 
-A notebook that loads open EEG recordings using MNE-Python, inspects metadata such as sampling frequency, number of channels and channel names, and visualizes raw EEG signals.
+### ShallowConvNet
 
-Expected output:
+The Braindecode `ShallowFBCSPNet` architecture was used as an established EEG-specific convolutional model.
 
-* `notebooks/01_load_and_visualize_eeg.ipynb`
-* `data/metadata/motor_imagery_manifest.csv`
-* `data/processed/epoch_metadata.csv`
-* raw EEG figure
-* short explanation of dataset structure
+### EEGNet
 
-### 2. EEG Preprocessing and Interpretation
+EEGNet uses:
 
-A reproducible preprocessing program that converts continuous EEG recordings into epochs.
+- temporal convolution
+- depthwise spatial convolution
+- separable temporal convolution
+- average pooling
+- dropout
+- linear classification
 
-Expected output:
+Two EEGNet configurations were evaluated:
 
-* channel selection
-* bandpass filtering
-* event extraction
-* epoch creation
-* saved processed arrays
-* extract PSD features (and potentially CSP features)
-* `notebooks/02_preprocess_motor_imagery.ipynb`
-
-### 3. Baseline Machine-Learning Models
-
-Classical machine-learning baselines trained on interpretable EEG features before using deep learning.
-
-Expected features may include:
-
-* channel variance
-* bandpower
-* power spectral density features
-* Common Spatial Pattern features, if appropriate
-
-Expected models may include:
-
-* logistic regression
-* random forest
-* support vector machine or similar classifier
-
-### 4. Deep-Learning Model
-
-A simple CNN and/or EEGNet-style model trained on EEG epochs for motor-imagery classification.
-
-Expected output:
-
-* PyTorch dataset and dataloader
-* CNN or EEGNet-style model
-* training curves
-* saved model checkpoint
-* model comparison against classical baselines
-
-### 5. Evaluation
-
-A comparison of different evaluation strategies to avoid misleading results.
-
-Expected evaluation methods:
-
-* naive random split
-* session-wise split
-* subject-wise split, if possible
-
-Expected metrics:
-
-* accuracy
-* balanced accuracy
-* F1 score
-* confusion matrix
-* per-class performance
-
-The goal is not only to report performance, but to understand how evaluation design affects the apparent reliability of EEG machine-learning models.
-
-### 6. Visualizations
-
-A set of figures that make the project understandable to both technical and non-technical readers.
-
-Expected figures:
-
-* raw EEG trace
-* filtered EEG trace
-* power spectral density plot
-* spectrogram or time-frequency plot
-* confusion matrix
-* model comparison chart
-
-### 7. Streamlit Dashboard
-
-An interactive dashboard that demonstrates the project pipeline using sample EEG data.
-
-Expected app features:
-
-* select an EEG sample/window
-* view EEG trace
-* view spectrogram or frequency-domain representation
-* view model prediction
-* view model confidence
-* read limitations and disclaimer
-
-### 8. Interpretability Module
-
-A basic interpretability analysis using saliency maps and/or occlusion sensitivity.
-
-Expected output:
-
-* channel-by-time attribution heatmap
-* occlusion-based channel or time-window importance plot
-* explanation of what the attribution does and does not mean
-
-### 9. Technical Report
-
-A short technical report summarizing the motivation, dataset, methods, results, limitations, and future work.
-
-Expected output:
-
-* `reports/NeuroSignalLab_Technical_Report.pdf`
-
-### 10. Optional Clinical EEG Extension
-
-If the main motor-imagery pipeline is stable, the project may include an extension using public seizure EEG data.
-
-This extension will be presented as exploration of the signals, not as a diagnostic model.
-
-
-## Limitations and Ethics
-
-NeuroSignalLab is a research and educational project. It is not a medical device, diagnostic tool, or clinical decision-support system. The models and visualizations in this repository should not be used to diagnose, monitor, treat, or predict neurological disease.
-
-### Main Limitations
-
-#### 1. Use of Public Datasets
-
-This project uses open EEG datasets. TThe datasets are used for learning and research, but may not represent real-world clinical conditions, different patient populations, different EEG devices, or hospital environments.
-
-#### 2. Subject Variability
-
-EEG signals vary strongly between individuals. A model that performs well on one subject may not generalize to another subject. For this reason, the project will compare different evaluation strategies, including subject-wise or session-wise testing when possible.
-
-#### 3. Risk of Data Leakage
-
-EEG data can be especially vulnerable to data leakage. If windows from the same subject or recording session appear in both the training and test sets, model performance may appear better than it actually is. This project will explicitly compare naive and more realistic evaluation methods.
-
-#### 4. Artifact Sensitivity
-
-EEG recordings can be affected by eye blinks, muscle activity, electrode noise, faulty nodes, movement, and other artifacts. These artifacts may influence both classical machine-learning models and deep-learning models.
-
-#### 5. Model Confidence Is Not Medical Certainty
-
-A high model confidence score does not mean that the model is clinically correct. Model outputs should be interpreted as experimental predictions, not medical conclusions.
-
-#### 6. Interpretability Limitations
-
-Saliency maps and occlusion sensitivity can show which parts of the input influenced the model’s prediction, but they do not prove that those channels or time segments reflect true neurophysiological causes.
-
-#### 7. Limited Clinical Validation
-
-This project does not include prospective testing, neurologist validation, real-time EEG acquisition, regulatory review, or clinical workflow testing.
-
-#### 8. Data and Privacy
-
-The repository will not include private patient data. Large raw EEG datasets will not be redistributed through this repository. Users can download datasets directly from the original sources and follow the original dataset terms, licenses, and citation requirements.
-
-### Ethical Position
-
-The purpose of this project is to learn how neural signal data can be loaded, processed, modeled, visualized, and evaluated responsibly. 
-
-The project seeks to emphasize its scientific humility, reproducibility, and careful communication of limitations.
-
-
-## Project Roadmap
-
-### 1: Project Setup and EEG Foundations
-
-**Goal:** Set up the repository and define the research question.
-
-Planned tasks:
-
-* create project repository
-* write README v0
-* write `notes/project_story.md`
-* set up Python environment
-* create notes for basic EEG concepts
-
-Expected outputs:
-
-* clean repository structure
-* project story note
-* EEG basics note
-* Neurosignallab (NSL) environment
+- **Configuration D**
+- **Max-norm-constrained EEGNet**
 
 ---
 
-### 2: Data Loading and Visualization
+## Development results
 
-**Goal:** Load real EEG recordings and visualize the raw signal.
+![Development model comparison](figures/figure2_model_comparison.png)
 
-Planned tasks:
+| Model | Validation balanced accuracy |
+|---|---:|
+| Generic CNN | 0.530 ± 0.014 |
+| CSP + LDA | 0.573 |
+| ShallowConvNet | 0.621 ± 0.007 |
+| **EEGNet Configuration D** | **0.628 ± 0.002** |
+| Constrained EEGNet | 0.634 ± 0.012 |
 
-* download a small subset of the PhysioNet EEG Motor Movement/Imagery dataset
-* load EEG files using MNE-Python
-* inspect sampling frequency, channel number, annotations/events, channel names, and recording duration
-* plot raw EEG traces to catch artifacts
+For neural-network models, values are **mean ± standard deviation across five random seeds**: `42, 123, 456, 789, 2026`
 
-Expected outputs:
+The constrained EEGNet achieved the highest mean validation balanced accuracy, but Configuration D was more consistent across seeds.
 
-* `notebooks/01_load_and_visualize_eeg.ipynb`
-* `data/metadata/motor_imagery_manifest.csv`
-* `data/processed/epoch_metadata.csv`
-* raw EEG trace figure
+Configuration D:
 
----
+`0.628446 ± 0.001923`
 
-### 3: EEG Preprocessing and Epoch Creation
+Constrained EEGNet:
 
-**Goal:** Load and convert continuous EEG recordings into epochs.
+`0.634246 ± 0.011780`
 
-Planned tasks:
-
-* select EEG channels
-* apply bandpass filtering
-* extract task events or annotations
-* extract PSD features
-* create epochs around motor-imagery events
-* save processed arrays for modeling
-* save metadata linked to each epoch (subject ID, relevant channels, etc.)
-
-Expected outputs:
-
-* `notebooks/02_preprocess_motor_imagery.ipynb`
-* processed EEG arrays
-* short explanation of preprocessing decisions
+For this reason, **Configuration D was selected as the primary NeuroSignalLab model**.
 
 ---
 
-### 4: Classical Baseline Models
+## Final model
 
-**Goal:** Build simple baseline models before using deep learning.
+The locked model is:
 
-Planned tasks:
+**EEGNet Configuration D — seed 42**
 
-* extract interpretable EEG features
-* train classical ML models
-* evaluate baseline performance
-* create first confusion matrix and metrics table
+Training configuration:
 
-Expected outputs:
+| Parameter | Value |
+|---|---:|
+| Learning rate | `1e-3` |
+| Dropout | `0.50` |
+| Weight decay | `1e-4` |
+| Batch size | `32` |
+| Maximum epochs | `30` |
+| Max-norm | None |
+| Selected epoch | `19` |
 
-* `notebooks/03_baseline_features_and_models.ipynb`
-* baseline results table
-* confusion matrix
+Locked checkpoint: `models/config_d_seed42_best.pt`
 
----
+Validation balanced accuracy of this exact checkpoint: 0.6277
 
-### 5: Evaluation
+## Final held-out evaluation
 
-**Goal:** Evaluate models in a way that avoids misleading performance claims.
+The frozen model was evaluated **once** on the 17-subject test cohort.
 
-Planned tasks:
+| Metric | Final result |
+|---|---:|
+| Accuracy | 0.5760 |
+| **Balanced accuracy** | **0.5756** |
+| Macro F1 | 0.5721 |
+| Test subjects | 17 |
+| Test trials | 757 |
+| Mean subject BA | 0.5776 |
+| Median subject BA | 0.5810 |
+| Subject BA range | 0.458–0.801 |
 
-* compare naive random split with session-wise or subject-wise splits
-* use balanced accuracy, F1 score, and confusion matrices
-* explain how data leakage can affect EEG model performance
+The final confusion matrix was:
 
-Expected outputs:
+| | Predicted left | Predicted right |
+|---|---:|---:|
+| **True left** | 254 | 126 |
+| **True right** | 195 | 182 |
 
-* `notebooks/04_honest_evaluation.ipynb`
-* split comparison table
-* short report on EEG evaluation limitations
+Left-class recall was approximately `66.8%`.
 
----
+Right-class recall was approximately `48.3%`.
 
-### 6: Deep-Learning Models
+The frozen checkpoint decreased from `62.8%` validation BA to `57.6%` test BA.
 
-**Goal:** Train a CNN and/or EEGNet-style model on EEG epochs.
+### Performance varied substantially between subjects
 
-Planned tasks:
+![Sbuject performance model](figures/figure3_subject_performance.png)
 
-* convert EEG epochs into PyTorch tensors
-* create Dataset and DataLoader objects
-* train a simple CNN
-* train or test an EEGNet-style model
-* compare deep learning against classical baselines
 
-Expected outputs:
+Twelve of the 17 test subjects had balanced accuracy above `0.50`, one had exactly `0.50`, and four were below `0.50`.
 
-* `notebooks/05_simple_cnn.ipynb`
-* `notebooks/06_eegnet_comparison.ipynb`
-* training curves
-* model comparison table
+The strongest subject reached approximately `0.80` BA while the weakest reached approximately `0.46`.
 
----
+No model, preprocessing, threshold, subject-selection, or training changes were made after observing the test result.
 
-### 7: Visualization and Dashboard
+No pre-specified statistical test against chance was performed, so the project reports the observed performance without making a formal claim above chance.
 
-**Goal:** Build an interactive demo that makes the project understandable.
+## Interpretability
 
-Planned tasks:
+NeuroSignalLab includes several methods for examining the frozen model:
 
-* create EEG trace visualizations
-* create PSD or spectrogram visualizations
-* build a Streamlit dashboard
-* add model prediction to the dashboard
-* add disclaimers and limitations
+- gradient saliency
+- channel occlusion
+- temporal occlusion
+- learned temporal-filter inspection
 
-Expected outputs:
+### Channel occlusion
 
-* `app/streamlit_app.py`
-* public demo link, if deployed
-* dashboard screenshots
+Channel occlusion removes one EEG channel at a time and measures the resulting change in the target-class logit.
 
----
+For group-level analysis, results were first averaged within each subject and then across subjects.
 
-### 8: Interpretability
+Correct left-imagery predictions showed the strongest average sensitivity around:
 
-**Goal:** Explore which EEG channels or time segments influence model predictions.
+- CP3
+- C3
+- P3
+- CP1
 
-Planned tasks:
+Correct right-imagery predictions showed the strongest average sensitivity around:
 
-* implement saliency maps
-* implement occlusion sensitivity
-* visualize attribution results
-* explain interpretability limitations
+- CP4
+- C4
+- CP6
+- P4
 
-Expected outputs:
+![Subject-balanced channel occlusion](results/week15_occlusion_topomap.png)
 
-* `notebooks/07_interpretability.ipynb`
-* saliency heatmap
-* occlusion importance plot
+These plots describe **model sensitivity at the electrode level**.
 
----
+## Learned temporal filters
 
-### 9: Optional Clinical EEG Extension
+The first EEGNet convolution contains eight learned temporal kernels.
 
-**Goal:** Explore whether the same pipeline can be adapted to clinical EEG seizure data.
+Each kernel:
 
-Planned tasks:
+- contains 40 weights
+- spans 250 ms at 160 Hz
 
-* load a small subset of public seizure EEG data
-* create seizure and non-seizure windows
-* train a simple baseline model
-* discuss clinical limitations carefully
+Their Fourier magnitude responses showed different frequency sensitivities within the model's 7–30 Hz input band.
 
-Expected outputs:
+Peak normalized magnitude responses were distributed approximately between **12 and 28 Hz**.
 
-* exploratory seizure notebook
-* seizure/non-seizure visualization
-* short limitations section
+These filters should not be interpreted as “mu” or “beta” detectors.
 
 ---
 
-### 10: Final Report and Portfolio
+## Saliency sanity check
 
-**Goal:** Turn the project into a portfolio.
+Gradient saliency was compared with saliency generated by a randomly initialized EEGNet for ten validation trials.
 
-Planned tasks:
+The correlation between trained and random saliency maps had:
 
-* clean repository
-* revise scripts
-* finalize README
-* write technical report
-* create demo video or screenshots
+mean ≈ -0.13
+range ≈ -0.20 to -0.02
 
-Expected outputs:
 
-* final README
-* technical report PDF
-* GitHub repository
-* app demo
-* project summary for applications
+This showed that the trained network parameters affected the observed saliency patterns.
 
-## Repository Structure
+## Interactive demo
+
+NeuroSignalLab includes a Streamlit research demo: `app/streamlit_app.py`
+
+
+The app allows a user to:
+
+- select a preprocessed validation EEG trial
+- inspect trial metadata
+- visualize an EEG waveform
+- run the frozen Configuration D EEGNet
+- view the predicted left/right class
+- inspect left/right **model outputs**
+- view channel-occlusion sensitivity
+
+The app uses **validation examples only**. The final test set is not exposed as an interactive analysis surface.
+
+Softmax values are shown as **model outputs**, not calibrated confidence estimates.
+
+The current app is an offline research demonstration. It does not accept live EEG or operate as a real-time BCI.
+
+---
+
+## Technical report
+
+A full description of the project design, experiments, results, interpretation, and limitations is available here:
+
+**[NeuroSignalLab Technical Report](reports/NeuroSignalLab_Technical_Report.pdf)**
+
+The technical report is the main scientific description of the completed project.
+
+## Repository structure
 
 ```text
-app/                 Streamlit dashboard files
-data/                Data instructions and small sample files
-figures/             Generated figures
-models/              Saved model files, if included
-notebooks/           Exploratory analysis notebooks
-notes/               Project reflections and planning notes
-reports/             Technical report and written explanations
-results/             Saved metrics and result tables
-src/neurosignallab/  Reusable Python code
+neurosignallab/
+│
+├── README.md
+├── LICENSE
+├── requirements.txt
+├── .gitignore
+│
+├── app/
+│   ├── streamlit_app.py
+│   └── model_utils.py
+│
+├── data/
+│   ├── README.md
+│   ├── sample/
+│   └── processed/              # generated locally / not redistributed
+│
+├── figures/
+│   ├── figure1_pipeline.png
+│   ├── figure2_model_comparison.png
+│   ├── figure3a_subject_performance.png
+│   ├── figure3b_confusion_matrix.png
+│   └── week15_occlusion_topomap.png
+│
+├── models/
+│   └── config_d_seed42_best.pt
+│
+├── notebooks/
+│   ├── 02_preprocess_and_epoch_motor_imagery.ipynb
+│   ├── 03_validate_preprocessing.ipynb
+│   ├── 04_csp_lda_baseline.ipynb
+│   ├── 05_cross_subject_generalization.ipynb
+│   ├── 06_nested_cv_csp_tuning.ipynb
+│   ├── 07_classical_model_statistics_and_robustness.ipynb
+│   ├── 08_pytorch_baseline_cnn.ipynb
+│   ├── 09_train_baseline_cnn.ipynb
+│   ├── 10_eegnet.ipynb
+│   ├── 11_eegnet_reproducibility.ipynb
+│   ├── 11b_eegnet_faithful_and_subject_analysis.ipynb
+│   ├── 12_model_comparison.ipynb
+│   ├── 13_inference_pipeline.ipynb
+│   ├── 15_interpretability.ipynb
+│   ├── 17_final_test_evaluation.ipynb
+│   └── 18_learned_filters.ipynb
+│
+├── notes/
+│   ├── reading_notes.md
+│   ├── project_story.md
+│   ├── preprocessing_protocol.md
+│   ├── limitations_clinical_validity.md
+│   └── claims_audit.md
+│
+├── reports/
+│   └── NeuroSignalLab_Technical_Report.pdf
+│
+├── results/
+│   ├── week9_subject_split.csv
+│   ├── week17_final_test_metrics.csv
+│   ├── week17_final_subject_metrics.csv
+│   ├── week17_final_predictions.csv
+│   └── ...
+│
+└── src/
+    └── neurosignallab/
+        ├── __init__.py
+        ├── preprocessing.py
+        ├── models.py
+        ├── train.py
+        ├── interpretability.py
+        └── inference.py
 ```
+
+`Notebooks` contain experiments and analysis.
+
+`src/neurosignallab/` contains reusable finalized code.
+
+`app/` contains the presentation layer.
+
+---
 
 ## Installation
 
-See requirements.txt
+Clone the repository:
 
-## Current Status
+```bash
+git clone https://github.com/henrikchan-ops/neurosignallab.git
+cd neurosignallab
+```
 
-Week 2 completed:
+Create and activate a virtual environment:
 
-- Created project environment and requirements file
-- Verified MNE-Python setup in `notebooks/00_mne_setup_check.ipynb`
-- Wrote EEG foundations notes in `notes/eeg_basics.md`
-- Started source-specific notes in `notes/reading_notes.md`
-- Documented early project reflection in `notes/project_story.md`
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-Next step:
+On Windows:
 
-- Load and inspect the first PhysioNet EDF recording in `notebooks/01_load_verify_and_visualize_eeg.ipynb`
+```bash
+.venv\Scripts\activate
+```
 
-## How to Run
+Install dependencies:
 
-TBD
+```bash
+pip install -r requirements.txt
+```
+
+## Running the Streamlit demo
+
+From the repository root:
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+The application requires the model checkpoint and the designated validation data expected by the app.
+
+---
+
+## Reproducing the analysis
+
+The major experimental progression is:
+
+```text
+preprocessing
+    ↓
+preprocessing validation
+    ↓
+CSP + LDA baseline
+    ↓
+cross-subject evaluation
+    ↓
+nested CSP tuning
+    ↓
+statistical / robustness analysis
+    ↓
+generic CNN
+    ↓
+EEGNet
+    ↓
+multi-seed reproducibility
+    ↓
+model comparison
+    ↓
+frozen inference pipeline
+    ↓
+interpretability
+    ↓
+final held-out evaluation
+    ↓
+learned-filter inspection
+```
+
+The exact subject split is stored in:
+
+```text
+results/week9_subject_split.csv
+```
+
+The final frozen checkpoint is:
+
+```text
+models/config_d_seed42_best.pt
+```
+
+The final test results are stored in:
+
+```text
+results/week17_final_test_metrics.csv
+results/week17_final_subject_metrics.csv
+results/week17_final_predictions.csv
+```
+
+The final test set should be treated as a reporting result and **not reused for additional model development**.
+
+---
+
+## Limitations
+
+The main limitations of NeuroSignalLab are:
+
+- performance varies substantially between subjects
+- the final test result is modest
+- the project uses one public dataset
+- only two cue-based motor-imagery classes are studied
+- there is no independent external dataset
+- softmax outputs were not calibrated
+- interpretability methods describe model sensitivity rather than physiological causality
+- the final test evaluates one frozen seed-42 checkpoint
+- there is no live EEG acquisition or online BCI pipeline
+- no patients or clinical outcomes were studied
+
+Future work could investigate:
+
+- subject-specific calibration
+- transfer learning
+- domain adaptation
+- session-to-session robustness
+- independent external validation
+- online EEG streaming
+- closed-loop BCI feedback
+
+These are future research directions and are **not existing NeuroSignalLab capabilities**.
+
+---
+
+## Research and medical disclaimer
+
+NeuroSignalLab is an **educational and research project**.
+
+It is not:
+
+- a medical device
+- a diagnostic system
+- a clinical decision-support tool
+- a rehabilitation intervention
+- a real-time BCI
+
+The models and visualizations in this repository should not be used to diagnose, monitor, treat, or predict neurological disease.
+
+NeuroSignalLab performs offline classification of previously recorded EEG and implements only the decoding component that could form part of a larger BCI system.
+
+---
+
+## Data and licensing
+
+The repository does not redistribute the full EEGMMIDB dataset.
+
+Users should obtain the data directly from PhysioNet and follow the original dataset license, citation requirements, and access conditions.
+
+Project source code is licensed under the **MIT License**.
+
+---
+
+## References
+
+1. Schalk, G. *EEG Motor Movement/Imagery Dataset.* PhysioNet, Version 1.0.0, 2009.  
+   DOI: `10.13026/C28G6P`
+
+2. Schalk, G., McFarland, D. J., Hinterberger, T., Birbaumer, N., & Wolpaw, J. R.  
+   *BCI2000: A General-Purpose Brain-Computer Interface (BCI) System.*  
+   IEEE Transactions on Biomedical Engineering, 51(6), 1034–1043, 2004.  
+   DOI: `10.1109/TBME.2004.827072`
+
+3. Ramoser, H., Müller-Gerking, J., & Pfurtscheller, G.  
+   *Optimal spatial filtering of single trial EEG during imagined hand movement.*  
+   IEEE Transactions on Rehabilitation Engineering, 8(4), 441–446, 2000.  
+   DOI: `10.1109/86.895946`
+
+4. Schirrmeister, R. T., et al.  
+   *Deep learning with convolutional neural networks for EEG decoding and visualization.*  
+   Human Brain Mapping, 38(11), 5391–5420, 2017.  
+   DOI: `10.1002/hbm.23730`
+
+5. Lawhern, V. J., et al.  
+   *EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces.*  
+   Journal of Neural Engineering, 15(5), 056013, 2018.  
+   DOI: `10.1088/1741-2552/aace8c`
+
+6. Adebayo, J., et al.  
+   *Sanity Checks for Saliency Maps.*  
+   Advances in Neural Information Processing Systems 31, 2018.
+
+7. Gramfort, A., et al.  
+   *MEG and EEG data analysis with MNE-Python.*  
+   Frontiers in Neuroscience, 7, 267, 2013.  
+   DOI: `10.3389/fnins.2013.00267`
+
+---
+
+## Author
+
+**Henrik Hei-Cheung Chan**
+
+Medical student and informatics student interested in neuroscience, machine learning, and neurotechnology.
+
+GitHub: [henrikchan-ops](https://github.com/henrikchan-ops)

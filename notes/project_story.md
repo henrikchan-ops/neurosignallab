@@ -1833,26 +1833,31 @@ accurately in a technical report, GitHub repository, portfolio, and CV.
 Write the 3–5 page technical report using the results, figures, project notes, interpretability analyses, and
 limitations documents.
 
-## Week 19
+## Week 19 — Finalization
 
-**What did I build this week?**
+### What did I build this week?
 
-**What did I learn technically?**
+I completed the final technical report and rewrote the README around the finished project. I also reviewed the supporting documentation, dependencies, reusable source code, figures, and repository structure.
 
-**What confused me?**
+### What did I learn technically?
 
-**What decision did I make?**
+Finishing a machine-learning project involves more than finishing the model. The repository also needs to make the experimental design, dependencies, limitations, saved outputs, and reproduction path understandable to someone who was not involved in development.
 
-**What limitation did I notice?**
+### What decision did I make?
 
-**How does this connect to my larger goal?**
+I consider the experimental phase of NeuroSignalLab complete. The frozen model and held-out test result will not be modified further. Remaining work is limited to repository cleanup, reproducibility checks, and presentation.
 
-**What is the next step?**
+### What limitation did I notice?
 
-## Connection to application to the US
-THis project clarifies my interest in studying at intersections of medicine, informatics, neuroscience and human-centered AI. I am trying to build technical skills that can work with biological data, which furthers my medical understanding. 
+A finished research prototype can still be difficult for another person to reproduce if dependencies, paths, data access, and assumptions are not documented clearly.
 
-Cornell, specifically is relevant because it can provide an environment where i can combine computing, neuroscience, data science and heath-related applications in an intentional and serious way. 
+### How does this connect to my larger goal?
+
+NeuroSignalLab gave me experience taking a neural-signal project from raw data through preprocessing, modeling, evaluation, interpretability, and scientific communication.
+
+### What is the next step?
+
+Lock the repository as version 1.0 and use the completed project as the basis for portfolio and application materials.
 
 ## One-sentence TLDR
 I built NeuroSignalLab to understand the process from raw EEG signals to machine-learning predictions, while learning the challenges you face while developing responsible neurotechnology.

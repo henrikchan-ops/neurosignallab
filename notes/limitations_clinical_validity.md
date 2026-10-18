@@ -1,12 +1,11 @@
-# Limitations  and Clinical Validity
+# Limitations and Clinical Validity
 
 ## 1. Project scope
 
 NeuroSignalLab is an educational research project investigating
 subject-independent motor-imagery EEG classification.
 
-The task is binary classification of imagined left versus imagined
-right fist movement using EEG. It does not claim do to anything more than that. 
+The task is binary classification of imagined left versus imagined right fist movement using EEG. It does not claim to do anything more than that. 
 
 ## 2. Final generalization performance
 
@@ -22,7 +21,7 @@ Final results:
 The held-out balanced accuracy was lower than the development validation
 balanced accuracy of 0.6277.
 
-This indicates that validation performance somewhat overestimated
+This indicates that validation performance had lower
 generalization to completely unseen subjects.
 
 ## 3. Subject-to-subject variability
@@ -239,8 +238,7 @@ The final test result is treated as a reporting result.
 ## 15. Main conclusion
 
 NeuroSignalLab demonstrates that a compact EEG-specific neural network
-can learn reproducible features for subject-independent motor-imagery
-classification under a controlled development protocol.
+can achieve stable performance for motor-imagery classification under a controlled development protocol.
 
 The frozen model achieved 57.6% balanced accuracy on 17 completely
 unseen test subjects, with substantial performance variation between
